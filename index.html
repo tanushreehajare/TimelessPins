@@ -32,7 +32,7 @@ button{font-family:var(--fb);cursor:pointer;}
 
 /* MAIN */
 #main{flex:1;display:flex;overflow:hidden;position:relative;}
-#map{flex:1;z-index:1;}
+#map{flex:1;z-index:1;filter:saturate(0.7) sepia(0.12) hue-rotate(320deg) brightness(1.04);}
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
 /* SEARCH */
@@ -361,8 +361,9 @@ let lcFiles=[];
 
 function initMap(){
   map=L.map('map',{zoomControl:false});
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© OpenStreetMap contributors',maxZoom:19
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap contributors © CARTO',
+    subdomains:'abcd', maxZoom:19
   }).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
   map.on('click',onMapClick);

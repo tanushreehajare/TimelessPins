@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>Our PinMap 🌸</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -36,25 +37,53 @@ button{font-family:var(--fb);cursor:pointer;}
 #map .leaflet-tile{filter:sepia(0.15) saturate(0.85) hue-rotate(300deg) brightness(1.03);}
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
-/* SEARCH */
-#sw{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:1500;width:min(420px,calc(100vw - 28px));}
-#sb{width:100%;display:flex;align-items:center;background:var(--white);border:1.5px solid var(--border);border-radius:28px;padding:0 14px;box-shadow:var(--sh);gap:8px;transition:border-color .2s,box-shadow .2s;}
-#sb:focus-within{border-color:var(--rose);box-shadow:0 6px 30px rgba(184,84,112,.18),0 0 0 3px rgba(184,84,112,.08);}
-.si{font-size:.95rem;flex-shrink:0;opacity:.5;}
-#si{flex:1;border:none;outline:none;font-family:var(--fb);font-size:.88rem;color:var(--ink);padding:11px 0;background:transparent;}
-#si::placeholder{color:var(--muted);}
-#sc{background:none;border:none;color:var(--muted);font-size:1rem;display:none;padding:2px;line-height:1;transition:color .15s;}
-#sc:hover{color:var(--rose-deep);}
-#sc.show{display:block;}
-#sr{background:var(--white);border:1.5px solid var(--border);border-radius:16px;margin-top:6px;overflow:hidden;box-shadow:var(--sh);display:none;max-height:240px;overflow-y:auto;}
-#sr.show{display:block;}
-.ri{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
-.ri:last-child{border-bottom:none;}
-.ri:hover{background:var(--rose-pale);}
-.ric{font-size:.85rem;margin-top:1px;flex-shrink:0;}
-.rn{font-size:.85rem;font-weight:600;color:var(--ink);line-height:1.3;}
-.ra{font-size:.72rem;color:var(--muted);margin-top:1px;}
-.rl,.re{padding:16px 14px;font-size:.82rem;color:var(--muted);text-align:center;}
+/* GEOCODER SEARCH — override leaflet-control-geocoder styles */
+.leaflet-control-geocoder{
+  position:fixed!important;top:68px!important;left:50%!important;transform:translateX(-50%)!important;
+  z-index:1500!important;width:min(400px,calc(100vw - 28px))!important;
+  border:none!important;box-shadow:none!important;background:transparent!important;
+  margin:0!important;float:none!important;
+}
+.leaflet-control-geocoder-form{
+  display:flex!important;align-items:center!important;
+  background:var(--white)!important;border:1.5px solid var(--border)!important;
+  border-radius:28px!important;padding:0 14px!important;
+  box-shadow:var(--sh)!important;gap:8px!important;
+  transition:border-color .2s,box-shadow .2s!important;
+}
+.leaflet-control-geocoder-form:focus-within{
+  border-color:var(--rose)!important;
+  box-shadow:0 6px 30px rgba(184,84,112,.18),0 0 0 3px rgba(184,84,112,.08)!important;
+}
+.leaflet-control-geocoder-form input{
+  flex:1!important;border:none!important;outline:none!important;
+  font-family:var(--fb)!important;font-size:.88rem!important;color:var(--ink)!important;
+  padding:11px 0!important;background:transparent!important;
+}
+.leaflet-control-geocoder-form input::placeholder{color:var(--muted)!important;}
+.leaflet-control-geocoder-form button{
+  background:none!important;border:none!important;
+  font-size:.95rem!important;opacity:.5!important;padding:0!important;
+  box-shadow:none!important;width:auto!important;height:auto!important;
+}
+.leaflet-control-geocoder-alternatives{
+  background:var(--white)!important;border:1.5px solid var(--border)!important;
+  border-radius:16px!important;margin-top:6px!important;
+  box-shadow:var(--sh)!important;overflow:hidden!important;
+  list-style:none!important;padding:0!important;
+}
+.leaflet-control-geocoder-alternatives li{
+  border-bottom:1px solid var(--border)!important;
+}
+.leaflet-control-geocoder-alternatives li:last-child{border-bottom:none!important;}
+.leaflet-control-geocoder-alternatives a{
+  display:block!important;padding:11px 14px!important;
+  font-family:var(--fb)!important;font-size:.85rem!important;
+  color:var(--ink)!important;text-decoration:none!important;
+  transition:background .15s!important;
+}
+.leaflet-control-geocoder-alternatives a:hover{background:var(--rose-pale)!important;}
+.leaflet-control-geocoder-alternatives a b{font-weight:600!important;}
 
 /* MODE BANNER */
 #mb{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:var(--rose-deep);color:white;padding:10px 22px;border-radius:30px;font-size:.82rem;font-weight:600;z-index:400;box-shadow:var(--sh);display:none;pointer-events:none;animation:pb 1.8s ease-in-out infinite;letter-spacing:.2px;}
@@ -190,8 +219,7 @@ button{font-family:var(--fb);cursor:pointer;}
   #sidebar.hidden{transform:translateX(-100%);}
   .tgl{display:none;}
   .logo{font-size:1.1rem;}
-  #sw{top:64px;}
-  .tp span:first-child{display:none;}
+  .leaflet-control-geocoder{top:64px!important;}
 }
 </style>
 </head>
@@ -243,15 +271,7 @@ button{font-family:var(--fb);cursor:pointer;}
   <div id="sbd"></div>
 
   <div id="map"></div>
-  <div id="map-tint"></div>
-  <div id="sw">
-    <div id="sb">
-      <span class="si">🔍</span>
-      <input id="si" type="text" placeholder="Search for a place, city, or landmark…" autocomplete="off" autocorrect="off" spellcheck="false"/>
-      <button id="sc">✕</button>
-    </div>
-    <div id="sr"></div>
-  </div>
+
 </div>
 
 <div id="mb"></div>
@@ -346,6 +366,7 @@ button{font-family:var(--fb);cursor:pointer;}
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL     = 'https://ljmgektayizfbexbfpri.supabase.co';
@@ -362,13 +383,29 @@ let lcFiles=[];
 
 function initMap(){
   map=L.map('map',{zoomControl:false});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
     attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
-    subdomains:'abcd', maxZoom:19, crossOrigin:true
+    subdomains:'abcd', maxZoom:19
   }).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
-  map.on('click',onMapClick);
-  map.on('zoomend',updLabels);
+
+  // Geocoder search — uses Nominatim, finds cities, POIs, addresses, buildings
+  const geocoder = L.Control.geocoder({
+    defaultMarkGeocode: false,
+    placeholder: 'Search for a place…',
+    geocoder: L.Control.Geocoder.nominatim({
+      geocodingQueryParams: { 'accept-language': 'en', limit: 8 }
+    })
+  })
+  .on('markgeocode', function(e){
+    const center = e.geocode.center;
+    map.flyTo(center, 16, {animate:true, duration:1});
+    showToast('📍 ' + e.geocode.name.split(',')[0]);
+  })
+  .addTo(map);
+
+  map.on('click', onMapClick);
+  map.on('zoomend', updLabels);
 }
 
 function onMapClick(e){
@@ -393,94 +430,6 @@ function fitMap(){
   if(all.length===1){map.setView([all[0].lat,all[0].lng],13);return;}
   map.fitBounds(L.latLngBounds(all.map(p=>[p.lat,p.lng])),{padding:[50,50]});
 }
-
-/* SEARCH */
-let sTimer=null,sMark=null;
-document.getElementById('si').addEventListener('input',function(){
-  const q=this.value.trim();
-  document.getElementById('sc').classList.toggle('show',q.length>0);
-  clearTimeout(sTimer);
-  if(q.length<2){hideR();return;}
-  document.getElementById('sr').innerHTML='<div class="rl">Searching…</div>';
-  document.getElementById('sr').classList.add('show');
-  sTimer=setTimeout(()=>doSearch(q),500);
-});
-document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Escape')clearS();});
-document.getElementById('sc').addEventListener('click',clearS);
-
-async function doSearch(q){
-  const b=document.getElementById('sr');
-  const results=[];
-  try{
-    // 1. Photon — best for POI names
-    try{
-      const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=en`);
-      const d=await r.json();
-      (d.features||[]).filter(f=>f.geometry&&f.properties&&f.properties.name).forEach(f=>{
-        const p=f.properties;
-        const addr=[p.street,p.city||p.town||p.village,p.state,p.country].filter(Boolean).slice(0,3).join(', ');
-        results.push({lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],name:p.name,addr,icon:getIcon(p.osm_key,p.osm_value)});
-      });
-    }catch(e){}
-
-    // 2. Nominatim — good for addresses and cities
-    if(results.length<3){
-      try{
-        const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1&accept-language=en`);
-        const d=await r.json();
-        d.forEach(r=>{
-          const nm=r.name||r.display_name.split(',')[0];
-          if(nm&&!results.find(x=>x.name===nm)){
-            results.push({lat:parseFloat(r.lat),lon:parseFloat(r.lon),name:nm,addr:r.display_name.split(',').slice(1,3).join(',').trim(),icon:getIcon(r.class,r.type)});
-          }
-        });
-      }catch(e){}
-    }
-
-    if(results.length){renderResults(results);return;}
-    b.innerHTML=`<div class="re">No results found.<br/><span style="font-size:.75rem;color:var(--muted)">💡 Try a shorter name — e.g. <em>"IIT Madras"</em> then zoom in to place your pin.</span></div>`;
-  }catch(err){
-    b.innerHTML='<div class="re">Search unavailable. Check your connection.</div>';
-  }
-}
-
-function getIcon(key,val){
-  if(!key&&!val)return'📍';
-  const k=(key||'').toLowerCase(),v=(val||'').toLowerCase();
-  if(k==='amenity'&&(v.includes('restaurant')||v.includes('cafe')||v.includes('food')))return'🍽️';
-  if(k==='amenity'&&v.includes('hospital'))return'🏥';
-  if(k==='amenity'&&(v.includes('university')||v.includes('school')||v.includes('college')))return'🎓';
-  if(k==='amenity'&&v.includes('hostel'))return'🏨';
-  if(k==='tourism')return'🏛️';
-  if(k==='natural')return'🌿';
-  if(k==='leisure')return'🌳';
-  if(k==='building')return'🏢';
-  if(k==='highway')return'🛣️';
-  if(v==='city'||v==='town')return'🏙️';
-  return'📍';
-}
-
-function renderResults(items){
-  const b=document.getElementById('sr');
-  b.innerHTML=items.slice(0,6).map(r=>`
-    <div class="ri" onclick="pickR(${r.lat},${r.lon},'${esc(r.name)}')">
-      <div class="ric">${r.icon}</div>
-      <div><div class="rn">${esc(r.name)}</div><div class="ra">${esc(r.addr)}</div></div>
-    </div>`).join('');
-}
-
-function pickR(lat,lon,name){
-  clearS();
-  map.flyTo([lat,lon],15,{animate:true,duration:1});
-  if(sMark)map.removeLayer(sMark);
-  sMark=L.marker([lat,lon],{icon:L.divIcon({className:'',html:`<div style="background:white;border:2px solid var(--rose);border-radius:50%;width:14px;height:14px;box-shadow:0 0 0 4px rgba(184,84,112,.2)"></div>`,iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
-  showToast(`Jumped to ${name} 📍`);
-  setTimeout(()=>{if(sMark){map.removeLayer(sMark);sMark=null;}},4000);
-}
-
-function clearS(){document.getElementById('si').value='';document.getElementById('sc').classList.remove('show');hideR();}
-function hideR(){const b=document.getElementById('sr');b.classList.remove('show');b.innerHTML='';}
-document.getElementById('map').addEventListener('click',()=>setTimeout(hideR,100));
 
 /* MARKERS */
 function lcIcon(n){return L.divIcon({className:'',html:`<div class="lc-m"><div class="lc-d"><span class="lc-di">💕</span></div><div class="lc-l">${esc(n)}</div></div>`,iconSize:[34,52],iconAnchor:[17,52],popupAnchor:[0,-56]});}

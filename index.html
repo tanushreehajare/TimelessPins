@@ -32,7 +32,8 @@ button{font-family:var(--fb);cursor:pointer;}
 
 /* MAIN */
 #main{flex:1;display:flex;overflow:hidden;position:relative;}
-#map{flex:1;z-index:1;filter:saturate(0.7) sepia(0.12) hue-rotate(320deg) brightness(1.04);}
+#map{flex:1;z-index:1;}
+#map .leaflet-tile{filter:sepia(0.15) saturate(0.85) hue-rotate(300deg) brightness(1.03);}
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
 /* SEARCH */
@@ -242,6 +243,7 @@ button{font-family:var(--fb);cursor:pointer;}
   <div id="sbd"></div>
 
   <div id="map"></div>
+  <div id="map-tint"></div>
   <div id="sw">
     <div id="sb">
       <span class="si">🔍</span>
@@ -360,9 +362,9 @@ let lcFiles=[];
 
 function initMap(){
   map=L.map('map',{zoomControl:false});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-    attribution:'© OpenStreetMap contributors © CARTO',
-    subdomains:'abcd', maxZoom:19
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+    subdomains:'abcd', maxZoom:19, crossOrigin:true
   }).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
   map.on('click',onMapClick);
@@ -401,48 +403,70 @@ document.getElementById('si').addEventListener('input',function(){
   if(q.length<2){hideR();return;}
   document.getElementById('sr').innerHTML='<div class="rl">Searching…</div>';
   document.getElementById('sr').classList.add('show');
-  sTimer=setTimeout(()=>doSearch(q),420);
+  sTimer=setTimeout(()=>doSearch(q),500);
 });
 document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Escape')clearS();});
 document.getElementById('sc').addEventListener('click',clearS);
 
 async function doSearch(q){
   const b=document.getElementById('sr');
+  const results=[];
   try{
-    // 1. Try Photon (better POI/building coverage)
-    const r1=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`);
-    const d1=await r1.json();
-    const feats=d1.features||[];
-    if(feats.length){renderPhoton(feats);return;}
-    // 2. Fallback: Nominatim
-    const r2=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`,{headers:{'Accept-Language':'en'}});
-    const d2=await r2.json();
-    if(d2.length){renderNominatim(d2);return;}
-    b.innerHTML='<div class="re">No places found.<br/>Try a shorter or simpler name — e.g. <em>"IIT Madras"</em> instead of the full hostel name.</div>';
-  }catch{b.innerHTML='<div class="re">Search unavailable. Check your connection.</div>';}
+    // 1. Photon — best for POI names
+    try{
+      const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=en`);
+      const d=await r.json();
+      (d.features||[]).filter(f=>f.geometry&&f.properties&&f.properties.name).forEach(f=>{
+        const p=f.properties;
+        const addr=[p.street,p.city||p.town||p.village,p.state,p.country].filter(Boolean).slice(0,3).join(', ');
+        results.push({lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],name:p.name,addr,icon:getIcon(p.osm_key,p.osm_value)});
+      });
+    }catch(e){}
+
+    // 2. Nominatim — good for addresses and cities
+    if(results.length<3){
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1&accept-language=en`);
+        const d=await r.json();
+        d.forEach(r=>{
+          const nm=r.name||r.display_name.split(',')[0];
+          if(nm&&!results.find(x=>x.name===nm)){
+            results.push({lat:parseFloat(r.lat),lon:parseFloat(r.lon),name:nm,addr:r.display_name.split(',').slice(1,3).join(',').trim(),icon:getIcon(r.class,r.type)});
+          }
+        });
+      }catch(e){}
+    }
+
+    if(results.length){renderResults(results);return;}
+    b.innerHTML=`<div class="re">No results found.<br/><span style="font-size:.75rem;color:var(--muted)">💡 Try a shorter name — e.g. <em>"IIT Madras"</em> then zoom in to place your pin.</span></div>`;
+  }catch(err){
+    b.innerHTML='<div class="re">Search unavailable. Check your connection.</div>';
+  }
 }
 
-function renderPhoton(feats){
-  const b=document.getElementById('sr');
-  b.innerHTML=feats.map(f=>{
-    const p=f.properties;
-    const lat=f.geometry.coordinates[1];
-    const lon=f.geometry.coordinates[0];
-    const nm=p.name||p.street||p.city||'Unknown place';
-    const parts=[p.street,p.city,p.state,p.country].filter(Boolean);
-    const addr=parts.join(', ');
-    const ic=p.osm_key==='amenity'?'🍽️':p.osm_key==='tourism'?'🏛️':p.osm_key==='natural'?'🌿':p.osm_key==='highway'?'🛣️':(p.type==='city'||p.type==='town')?'🏙️':'📍';
-    return `<div class="ri" onclick="pickR(${lat},${lon},'${esc(nm)}')"><div class="ric">${ic}</div><div><div class="rn">${esc(nm)}</div><div class="ra">${esc(addr)}</div></div></div>`;
-  }).join('');
+function getIcon(key,val){
+  if(!key&&!val)return'📍';
+  const k=(key||'').toLowerCase(),v=(val||'').toLowerCase();
+  if(k==='amenity'&&(v.includes('restaurant')||v.includes('cafe')||v.includes('food')))return'🍽️';
+  if(k==='amenity'&&v.includes('hospital'))return'🏥';
+  if(k==='amenity'&&(v.includes('university')||v.includes('school')||v.includes('college')))return'🎓';
+  if(k==='amenity'&&v.includes('hostel'))return'🏨';
+  if(k==='tourism')return'🏛️';
+  if(k==='natural')return'🌿';
+  if(k==='leisure')return'🌳';
+  if(k==='building')return'🏢';
+  if(k==='highway')return'🛣️';
+  if(v==='city'||v==='town')return'🏙️';
+  return'📍';
 }
 
-function renderNominatim(rs){
+function renderResults(items){
   const b=document.getElementById('sr');
-  b.innerHTML=rs.map(r=>{
-    const nm=r.name||r.display_name.split(',')[0];
-    const ic=r.class==='amenity'?'🍽️':r.class==='tourism'?'🏛️':r.class==='natural'?'🌿':(r.type==='city'||r.type==='town')?'🏙️':'📍';
-    return `<div class="ri" onclick="pickR(${r.lat},${r.lon},'${esc(nm)}')"><div class="ric">${ic}</div><div><div class="rn">${esc(nm)}</div><div class="ra">${esc(r.display_name)}</div></div></div>`;
-  }).join('');
+  b.innerHTML=items.slice(0,6).map(r=>`
+    <div class="ri" onclick="pickR(${r.lat},${r.lon},'${esc(r.name)}')">
+      <div class="ric">${r.icon}</div>
+      <div><div class="rn">${esc(r.name)}</div><div class="ra">${esc(r.addr)}</div></div>
+    </div>`).join('');
 }
 
 function pickR(lat,lon,name){

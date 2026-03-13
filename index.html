@@ -36,7 +36,7 @@ button{font-family:var(--fb);cursor:pointer;}
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
 /* SEARCH */
-#sw{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:400;width:min(420px,calc(100vw - 28px));}
+#sw{position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:1500;width:min(420px,calc(100vw - 28px));}
 #sb{width:100%;display:flex;align-items:center;background:var(--white);border:1.5px solid var(--border);border-radius:28px;padding:0 14px;box-shadow:var(--sh);gap:8px;transition:border-color .2s,box-shadow .2s;}
 #sb:focus-within{border-color:var(--rose);box-shadow:0 6px 30px rgba(184,84,112,.18),0 0 0 3px rgba(184,84,112,.08);}
 .si{font-size:.95rem;flex-shrink:0;opacity:.5;}
@@ -189,7 +189,7 @@ button{font-family:var(--fb);cursor:pointer;}
   #sidebar.hidden{transform:translateX(-100%);}
   .tgl{display:none;}
   .logo{font-size:1.1rem;}
-  #sw{top:10px;}
+  #sw{top:64px;}
   .tp span:first-child{display:none;}
 }
 </style>
@@ -241,15 +241,14 @@ button{font-family:var(--fb);cursor:pointer;}
   </div>
   <div id="sbd"></div>
 
-  <div id="map">
-    <div id="sw">
-      <div id="sb">
-        <span class="si">🔍</span>
-        <input id="si" type="text" placeholder="Search for a place, city, or landmark…" autocomplete="off" autocorrect="off" spellcheck="false"/>
-        <button id="sc">✕</button>
-      </div>
-      <div id="sr"></div>
+  <div id="map"></div>
+  <div id="sw">
+    <div id="sb">
+      <span class="si">🔍</span>
+      <input id="si" type="text" placeholder="Search for a place, city, or landmark…" autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button id="sc">✕</button>
     </div>
+    <div id="sr"></div>
   </div>
 </div>
 
@@ -409,15 +408,22 @@ document.getElementById('sc').addEventListener('click',clearS);
 
 async function doSearch(q){
   try{
-    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`,{headers:{'Accept-Language':'en'}});
+    // Try specific search first, then fall back to broader search
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1&extratags=1&namedetails=1`;
+    const r=await fetch(url,{headers:{'Accept-Language':'en','User-Agent':'OurPinMap/1.0'}});
     const d=await r.json();
-    renderR(d);
+    if(d.length){renderR(d);return;}
+    // If nothing found, try without special chars and broader
+    const q2=q.replace(/[^a-zA-Z0-9 ]/g,' ').trim();
+    const r2=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q2)}&format=json&limit=6&addressdetails=1`,{headers:{'Accept-Language':'en'}});
+    const d2=await r2.json();
+    renderR(d2);
   }catch{document.getElementById('sr').innerHTML='<div class="re">Search unavailable. Try again.</div>';}
 }
 
 function renderR(rs){
   const b=document.getElementById('sr');
-  if(!rs.length){b.innerHTML='<div class="re">No places found. Try a different name.</div>';return;}
+  if(!rs.length){b.innerHTML='<div class="re">No places found. Try a shorter name,<br/>e.g. "IIT Madras" or "Tunga Hostel Chennai".</div>';return;}
   b.innerHTML=rs.map(r=>{
     const nm=r.name||r.display_name.split(',')[0];
     const ic=r.class==='amenity'?'🍽️':r.class==='tourism'?'🏛️':r.class==='natural'?'🌿':(r.type==='city'||r.type==='town')?'🏙️':'📍';

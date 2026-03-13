@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Our PinMap 🌸</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --rose:      #e8a0b0;
+  --rose-deep: #c2607a;
+  --rose-pale: #fce8ef;
+  --petal:     #f9d0dc;
+  --blush:     #fff0f4;
+  --cream:     #fdf8f5;
+  --ink:       #3d1f2a;
+  --muted:     #9c7080;
+  --border:    #f0d0da;
+  --gold:      #d4956a;
+  --white:     #ffffff;
+  --shadow-sm: 0 2px 12px rgba(180,80,100,0.10);
+  --shadow:    0 6px 28px rgba(180,80,100,0.15);
+  --shadow-lg: 0 16px 56px rgba(180,80,100,0.22);
+  --r:         16px;
+  --font-h:    'Playfair Display', Georgia, serif;
+  --font-b:    'Lato', sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--blush);}
+body{font-family:var(--font-b);color:var(--ink);display:flex;flex-direction:column;}
+
+/* ══ TOPBAR ══════════════════════════════════════════ */
+#topbar{
+  background:linear-gradient(135deg,#fff0f4 0%,#fce8ef 100%);
+  border-bottom:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;gap:10px;z-index:1000;flex-shrink:0;
+  box-shadow:0 2px 16px rgba(200,100,120,0.08);
+}
+.logo{font-family:var(--font-h);font-size:1.25rem;color:var(--rose-deep);display:flex;align-items:center;gap:6px;font-style:italic;white-space:nowrap;}
+.logo-heart{font-style:normal;font-size:1.1rem;}
+.top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+
+.icon-btn{
+  width:36px;height:36px;border-radius:50%;border:1.5px solid var(--border);
+  background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:1rem;transition:all .2s;box-shadow:var(--shadow-sm);position:relative;
+}
+.icon-btn:hover{border-color:var(--rose);background:var(--rose-pale);transform:scale(1.05);}
+.icon-btn.active{background:var(--rose-pale);border-color:var(--rose-deep);box-shadow:0 0 0 3px rgba(194,96,122,.15);}
+.icon-btn .tip{
+  position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:white;font-size:0.68rem;padding:3px 8px;
+  border-radius:20px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s;
+  font-family:var(--font-b);
+}
+.icon-btn:hover .tip{opacity:1;}
+
+.pill-btn{
+  display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:24px;
+  border:1.5px solid var(--border);background:white;cursor:pointer;
+  font-family:var(--font-b);font-size:0.78rem;font-weight:700;color:var(--rose-deep);
+  transition:all .2s;box-shadow:var(--shadow-sm);white-space:nowrap;
+}
+.pill-btn:hover{background:var(--rose-pale);border-color:var(--rose);}
+.pill-btn.active{background:var(--rose-deep);color:white;border-color:var(--rose-deep);}
+
+/* ══ LAYOUT ══════════════════════════════════════════ */
+#main{flex:1;display:flex;overflow:hidden;position:relative;}
+#map{flex:1;z-index:1;}
+#map.mode-love{cursor:crosshair!important;}
+#map.mode-trail{cursor:copy!important;}
+#map.mode-sweet{cursor:crosshair!important;}
+#map.mode-snuggle{cursor:crosshair!important;}
+
+/* ══ SIDEBAR (PinDom) ════════════════════════════════ */
+#sidebar{
+  width:300px;background:var(--cream);border-right:1.5px solid var(--border);
+  display:flex;flex-direction:column;z-index:10;flex-shrink:0;
+  box-shadow:4px 0 24px rgba(200,100,120,0.08);
+  transform:translateX(0);transition:transform .3s ease;
+}
+#sidebar.hidden{transform:translateX(-100%);}
+
+#sidebar-header{
+  padding:18px 18px 12px;border-bottom:1px solid var(--border);
+  background:linear-gradient(135deg,#fff0f4,#fce8ef);
+}
+#sidebar-header h3{font-family:var(--font-h);font-size:1.1rem;color:var(--rose-deep);font-style:italic;margin-bottom:10px;}
+
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;}
+.filter-chip{
+  padding:4px 10px;border-radius:20px;border:1.5px solid var(--border);
+  background:white;font-size:0.72rem;font-weight:700;cursor:pointer;
+  color:var(--muted);transition:all .2s;
+}
+.filter-chip.active{background:var(--rose-pale);border-color:var(--rose);color:var(--rose-deep);}
+
+#pin-list{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;}
+#pin-list::-webkit-scrollbar{width:4px;}
+#pin-list::-webkit-scrollbar-track{background:transparent;}
+#pin-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+.pin-list-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+  background:white;border:1.5px solid var(--border);cursor:pointer;
+  transition:all .2s;box-shadow:var(--shadow-sm);
+}
+.pin-list-item:hover{border-color:var(--rose);background:var(--rose-pale);transform:translateX(3px);}
+.pin-list-icon{font-size:1.2rem;flex-shrink:0;}
+.pin-list-title{font-size:0.85rem;font-weight:700;color:var(--ink);line-height:1.2;}
+.pin-list-type{font-size:0.7rem;color:var(--muted);}
+
+/* ══ MAP OVERLAYS ════════════════════════════════════ */
+.mode-banner{
+  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  background:var(--rose-deep);color:white;padding:10px 20px;border-radius:30px;
+  font-size:0.82rem;font-weight:700;z-index:500;box-shadow:var(--shadow);
+  display:none;pointer-events:none;font-family:var(--font-b);
+  animation:pulse-banner 1.5s ease-in-out infinite;
+}
+.mode-banner.show{display:block;}
+@keyframes pulse-banner{0%,100%{opacity:1;}50%{opacity:.75;};}
+
+/* ══ CUSTOM MARKERS ══════════════════════════════════ */
+.lc-marker{
+  display:flex;flex-direction:column;align-items:center;cursor:pointer;
+}
+.lc-dot{
+  width:32px;height:32px;background:var(--rose-deep);border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 3px 10px rgba(194,96,122,.4);
+  display:flex;align-items:center;justify-content:center;transition:transform .2s;
+}
+.lc-dot-inner{transform:rotate(45deg);font-size:.9rem;}
+.lc-label{
+  margin-top:4px;background:white;padding:2px 8px;border-radius:12px;
+  font-size:.68rem;font-weight:700;color:var(--rose-deep);white-space:nowrap;
+  box-shadow:var(--shadow-sm);border:1px solid var(--border);
+  display:none;
+}
+.sweet-marker{font-size:1.6rem;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(200,100,120,.4));animation:heartbeat 2s ease-in-out infinite;}
+@keyframes heartbeat{0%,100%{transform:scale(1);}50%{transform:scale(1.12);};}
+.snuggle-marker{font-size:1.6rem;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(160,120,80,.35));animation:wobble 3s ease-in-out infinite;}
+@keyframes wobble{0%,100%{transform:rotate(0);}25%{transform:rotate(-5deg);}75%{transform:rotate(5deg);};}
+.trail-star{font-size:1.8rem;cursor:pointer;filter:drop-shadow(0 2px 6px rgba(210,160,80,.5));animation:twinkle 2s ease-in-out infinite;}
+@keyframes twinkle{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.7;transform:scale(.9);};}
+
+/* ══ DETAIL PANEL ════════════════════════════════════ */
+#detail-panel{
+  position:fixed;inset:0;z-index:8000;background:rgba(61,31,42,.5);backdrop-filter:blur(4px);
+  display:none;align-items:flex-end;justify-content:center;
+}
+#detail-panel.open{display:flex;}
+#detail-inner{
+  background:var(--cream);border-radius:28px 28px 0 0;width:100%;max-width:600px;
+  max-height:90vh;overflow-y:auto;padding:28px 24px 40px;
+  animation:slideUpPanel .3s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 -8px 40px rgba(180,80,100,.2);
+}
+@keyframes slideUpPanel{from{transform:translateY(60px);opacity:0;}to{transform:translateY(0);opacity:1;};}
+#detail-inner::-webkit-scrollbar{width:4px;}
+#detail-inner::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+.panel-handle{width:44px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 20px;}
+.panel-type-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  background:var(--rose-pale);border:1.5px solid var(--border);font-size:0.72rem;
+  font-weight:700;color:var(--rose-deep);margin-bottom:12px;
+}
+.panel-title{font-family:var(--font-h);font-size:1.6rem;color:var(--ink);font-style:italic;margin-bottom:4px;line-height:1.3;}
+.panel-location{font-size:0.82rem;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:4px;}
+.panel-date{font-size:0.78rem;color:var(--rose);margin-bottom:16px;}
+
+.panel-image-strip{
+  display:flex;gap:10px;overflow-x:auto;margin-bottom:18px;padding-bottom:6px;
+}
+.panel-image-strip::-webkit-scrollbar{height:3px;}
+.panel-image-strip::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.panel-img-wrap{position:relative;flex-shrink:0;}
+.panel-img{
+  width:200px;height:150px;object-fit:cover;border-radius:14px;
+  box-shadow:var(--shadow);border:2px solid var(--border);
+}
+.panel-img-del{
+  position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;
+  background:rgba(255,255,255,.9);border:none;cursor:pointer;font-size:.75rem;
+  display:flex;align-items:center;justify-content:center;color:var(--rose-deep);
+}
+
+.panel-desc{font-size:.9rem;color:var(--ink);line-height:1.7;margin-bottom:18px;}
+
+.song-card{
+  display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;
+  background:linear-gradient(135deg,#2d1244,#1a0a2e);color:white;margin-bottom:18px;
+}
+.song-cover{width:56px;height:56px;border-radius:10px;object-fit:cover;}
+.song-cover-placeholder{width:56px;height:56px;border-radius:10px;background:#4a2060;display:flex;align-items:center;justify-content:center;font-size:1.4rem;}
+.song-info{flex:1;}
+.song-title{font-weight:700;font-size:.9rem;margin-bottom:2px;}
+.song-link{font-size:.75rem;color:#c4a0e8;text-decoration:none;}
+.song-link:hover{text-decoration:underline;}
+
+.panel-close-btn{
+  position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;
+  background:var(--rose-pale);border:1.5px solid var(--border);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+  color:var(--rose-deep);box-shadow:var(--shadow-sm);
+}
+
+/* ══ ADD MODALS ══════════════════════════════════════ */
+.modal-overlay{
+  position:fixed;inset:0;z-index:9000;background:rgba(61,31,42,.55);
+  backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--cream);border-radius:var(--r);width:100%;max-width:440px;
+  padding:28px 24px;box-shadow:var(--shadow-lg);animation:modalIn .25s ease;
+  max-height:90vh;overflow-y:auto;position:relative;
+}
+@keyframes modalIn{from{transform:scale(.95) translateY(12px);opacity:0;}to{transform:scale(1) translateY(0);opacity:1;};}
+.modal-box::-webkit-scrollbar{width:4px;}
+.modal-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.modal-title{font-family:var(--font-h);font-size:1.4rem;color:var(--rose-deep);font-style:italic;margin-bottom:4px;}
+.modal-sub{font-size:.8rem;color:var(--muted);margin-bottom:20px;}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);}
+
+.form-row{margin-bottom:14px;}
+.form-label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.form-input,.form-textarea{
+  width:100%;padding:11px 13px;border-radius:10px;border:1.5px solid var(--border);
+  font-family:var(--font-b);font-size:.9rem;color:var(--ink);background:white;
+  transition:border .2s;
+}
+.form-input:focus,.form-textarea:focus{outline:none;border-color:var(--rose);}
+.form-textarea{resize:vertical;min-height:80px;}
+
+.img-upload-zone{
+  border:2px dashed var(--border);border-radius:12px;padding:18px;text-align:center;
+  cursor:pointer;transition:all .2s;background:white;position:relative;overflow:hidden;
+}
+.img-upload-zone:hover{border-color:var(--rose);background:var(--rose-pale);}
+.img-upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.img-upload-zone .uicon{font-size:1.8rem;margin-bottom:6px;}
+.img-upload-zone .utxt{font-size:.8rem;color:var(--muted);}
+#preview-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.preview-thumb{position:relative;}
+.preview-thumb img{width:70px;height:70px;object-fit:cover;border-radius:8px;border:2px solid var(--border);}
+.preview-thumb button{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--rose-deep);color:white;border:none;cursor:pointer;font-size:.65rem;display:flex;align-items:center;justify-content:center;}
+
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.btn-primary{
+  flex:2;padding:13px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,var(--rose),var(--rose-deep));
+  color:white;font-family:var(--font-b);font-size:.9rem;font-weight:700;
+  cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(194,96,122,.3);
+}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(194,96,122,.4);}
+.btn-primary:disabled{background:#ccc;box-shadow:none;transform:none;cursor:not-allowed;}
+.btn-secondary{
+  flex:1;padding:13px;border-radius:12px;border:1.5px solid var(--border);
+  background:white;font-family:var(--font-b);font-size:.9rem;color:var(--muted);
+  cursor:pointer;transition:all .2s;
+}
+.btn-secondary:hover{background:var(--rose-pale);}
+
+/* ══ PINBOARD ════════════════════════════════════════ */
+#pinboard-view{
+  position:fixed;inset:0;z-index:7000;background:var(--cream);
+  display:none;flex-direction:column;
+}
+#pinboard-view.open{display:flex;}
+#pinboard-header{
+  padding:16px 20px;border-bottom:1.5px solid var(--border);
+  background:linear-gradient(135deg,#fff0f4,#fce8ef);
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:var(--shadow-sm);
+}
+#pinboard-header h2{font-family:var(--font-h);font-style:italic;font-size:1.3rem;color:var(--rose-deep);}
+#pinboard-grid{
+  flex:1;overflow-y:auto;padding:20px;
+  columns:2 150px;column-gap:14px;
+}
+#pinboard-grid::-webkit-scrollbar{width:4px;}
+#pinboard-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.board-card{
+  break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;
+  position:relative;cursor:pointer;box-shadow:var(--shadow-sm);
+  border:2px solid var(--border);transition:all .25s;
+}
+.board-card:hover{transform:scale(1.02);box-shadow:var(--shadow);}
+.board-card img{width:100%;display:block;}
+.board-card-overlay{
+  position:absolute;bottom:0;left:0;right:0;padding:8px 10px;
+  background:linear-gradient(transparent,rgba(61,31,42,.7));
+  color:white;font-size:.72rem;font-weight:700;
+}
+.board-card-pin{
+  position:absolute;top:8px;right:8px;background:rgba(255,255,255,.9);
+  width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;cursor:pointer;box-shadow:var(--shadow-sm);
+}
+
+/* ══ TOAST ═══════════════════════════════════════════ */
+#toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--ink);color:white;padding:11px 20px;border-radius:30px;
+  font-size:.82rem;font-weight:700;z-index:99999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  white-space:nowrap;box-shadow:var(--shadow);pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ══ LOADING ═════════════════════════════════════════ */
+#loading{
+  position:fixed;inset:0;z-index:99999;
+  background:linear-gradient(135deg,#fff0f4 0%,#fce8ef 60%,#fdf0e8 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  transition:opacity .5s;
+}
+#loading.out{opacity:0;pointer-events:none;}
+#loading .load-logo{font-family:var(--font-h);font-size:2.4rem;color:var(--rose-deep);font-style:italic;}
+#loading .load-sub{font-size:.85rem;color:var(--muted);}
+.load-hearts{display:flex;gap:8px;}
+.load-hearts span{font-size:1.2rem;animation:floatHeart 1.2s ease-in-out infinite;}
+.load-hearts span:nth-child(2){animation-delay:.2s;}
+.load-hearts span:nth-child(3){animation-delay:.4s;}
+@keyframes floatHeart{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);};}
+
+/* ══ LEAFLET OVERRIDES ═══════════════════════════════ */
+.leaflet-popup-content-wrapper{border-radius:14px!important;padding:0!important;overflow:hidden;border:2px solid var(--border)!important;box-shadow:var(--shadow)!important;}
+.leaflet-popup-content{margin:0!important;}
+.leaflet-popup-tip-container{display:none;}
+.leaflet-control-zoom a{background:white!important;border-color:var(--border)!important;color:var(--rose-deep)!important;font-size:1rem!important;}
+.leaflet-control-zoom a:hover{background:var(--rose-pale)!important;}
+
+/* ══ RESPONSIVE ══════════════════════════════════════ */
+@media(max-width:640px){
+  #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:500;transform:translateX(-100%);}
+  #sidebar.open{transform:translateX(0);}
+  #sidebar.hidden{transform:translateX(-100%);}
+  .logo{font-size:1rem;}
+  #detail-inner{border-radius:24px 24px 0 0;padding:20px 16px 36px;}
+}
+
+/* Mobile sidebar backdrop */
+#sidebar-backdrop{display:none;position:fixed;inset:0;z-index:490;background:rgba(0,0,0,.35);}
+#sidebar-backdrop.show{display:block;}
+
+/* Emoji cursor helper */
+.cursor-heart{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext y='24' font-size='24'%3E❤️%3C/text%3E%3C/svg%3E") 16 16,auto;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="load-logo">Our PinMap</div>
+  <div class="load-hearts"><span>🌸</span><span>💕</span><span>🌸</span></div>
+  <div class="load-sub">Loading your memories…</div>
+</div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo"><span class="logo-heart">🌸</span> Our PinMap</div>
+  <div class="top-actions">
+    <!-- Add modes -->
+    <button class="icon-btn" id="btn-add-lc" title="Add Love Coordinate">📍<span class="tip">Love Coordinate</span></button>
+    <button class="icon-btn" id="btn-add-sweet" title="Add SweetSpot">💗<span class="tip">SweetSpot</span></button>
+    <button class="icon-btn" id="btn-add-snuggle" title="Add Snuggle Spot">🧸<span class="tip">Snuggle Spot</span></button>
+    <button class="icon-btn" id="btn-add-trail" title="Add Love Trail">⭐<span class="tip">Love Trail</span></button>
+    <!-- Layers -->
+    <button class="pill-btn" id="btn-journey">🗺️ Journey</button>
+    <button class="pill-btn" id="btn-garden">🌿 Garden</button>
+    <!-- Views -->
+    <button class="icon-btn" id="btn-pindom">📋<span class="tip">PinDom</span></button>
+    <button class="icon-btn" id="btn-pinboard">🖼️<span class="tip">PinBoard</span></button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <!-- PinDom Sidebar -->
+  <div id="sidebar" class="hidden">
+    <div id="sidebar-header">
+      <h3>📋 PinDom</h3>
+      <div class="filter-row">
+        <div class="filter-chip active" data-filter="all">All</div>
+        <div class="filter-chip" data-filter="lc">📍 Love</div>
+        <div class="filter-chip" data-filter="sweet">💗 Sweet</div>
+        <div class="filter-chip" data-filter="snuggle">🧸 Snuggle</div>
+        <div class="filter-chip" data-filter="trail">⭐ Trail</div>
+      </div>
+    </div>
+    <div id="pin-list"></div>
+  </div>
+  <div id="sidebar-backdrop"></div>
+  <!-- Map -->
+  <div id="map"></div>
+</div>
+
+<!-- Mode Banner -->
+<div class="mode-banner" id="mode-banner"></div>
+
+<!-- ══ DETAIL PANEL ════════════════════════════════════ -->
+<div id="detail-panel">
+  <div id="detail-inner" style="position:relative;">
+    <div class="panel-handle"></div>
+    <button class="panel-close-btn" onclick="closeDetail()">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- ══ ADD LOVE COORDINATE MODAL ══════════════════════ -->
+<div class="modal-overlay" id="modal-lc">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-lc')">✕</button>
+    <div class="modal-title">📍 Love Coordinate</div>
+    <div class="modal-sub" id="lc-coords-label"></div>
+    <div class="form-row">
+      <label class="form-label">Memory Name *</label>
+      <input class="form-input" id="lc-name" placeholder="Our first coffee…" maxlength="60"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Location Name</label>
+      <input class="form-input" id="lc-location" placeholder="Central Park, New York…" maxlength="80"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date</label>
+      <input class="form-input" id="lc-date" type="date"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <textarea class="form-textarea" id="lc-desc" placeholder="Describe this memory…"></textarea>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Photos</label>
+      <div class="img-upload-zone" id="lc-upload-zone">
+        <input type="file" id="lc-images" accept="image/*" multiple onchange="handleLCImages(this)"/>
+        <div class="uicon">📷</div>
+        <div class="utxt">Tap to add photos (multiple allowed)</div>
+      </div>
+      <div id="preview-strip"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="cancelMode()">Cancel</button>
+      <button class="btn-primary" onclick="submitLC()">Save Memory 💕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD SWEETSPOT MODAL ════════════════════════════ -->
+<div class="modal-overlay" id="modal-sweet">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-sweet')">✕</button>
+    <div class="modal-title">💗 SweetSpot</div>
+    <div class="modal-sub" id="sweet-coords-label"></div>
+    <div class="form-row">
+      <label class="form-label">Title *</label>
+      <input class="form-input" id="sweet-name" placeholder="Our sweet corner…" maxlength="60"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="cancelMode()">Cancel</button>
+      <button class="btn-primary" onclick="submitSweet()">Pin It 💗</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD SNUGGLE SPOT MODAL ═════════════════════════ -->
+<div class="modal-overlay" id="modal-snuggle">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-snuggle')">✕</button>
+    <div class="modal-title">🧸 Snuggle Spot</div>
+    <div class="modal-sub" id="snuggle-coords-label"></div>
+    <div class="form-row">
+      <label class="form-label">Place Name *</label>
+      <input class="form-input" id="snuggle-name" placeholder="Our cozy corner…" maxlength="60"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Spotify Song URL (optional)</label>
+      <input class="form-input" id="snuggle-song-url" placeholder="https://open.spotify.com/track/…"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Spotify Cover Image URL *</label>
+      <input class="form-input" id="snuggle-song-img" placeholder="Paste image URL from Spotify…"/>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Song Title</label>
+      <input class="form-input" id="snuggle-song-title" placeholder="Our song name…" maxlength="80"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="cancelMode()">Cancel</button>
+      <button class="btn-primary" onclick="submitSnuggle()">Save Spot 🧸</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD LOVE TRAIL MODAL ═══════════════════════════ -->
+<div class="modal-overlay" id="modal-trail">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-trail')">✕</button>
+    <div class="modal-title">⭐ Love Trail</div>
+    <div class="modal-sub">Click points on the map to build your trail. Click "Done" when finished.</div>
+    <div class="form-row">
+      <label class="form-label">Trail Name *</label>
+      <input class="form-input" id="trail-name" placeholder="Our evening walks…" maxlength="60"/>
+    </div>
+    <div id="trail-point-count" style="font-size:.8rem;color:var(--muted);margin-bottom:12px;">0 points added</div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="cancelMode()">Cancel</button>
+      <button class="btn-primary" id="trail-done-btn" onclick="submitTrail()" disabled>Done ⭐</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PINBOARD VIEW ══════════════════════════════════ -->
+<div id="pinboard-view">
+  <div id="pinboard-header">
+    <h2>🖼️ Our PinBoard</h2>
+    <button class="icon-btn" onclick="closePinboard()" style="width:34px;height:34px;">✕</button>
+  </div>
+  <div id="pinboard-grid"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ═══════════════════════════════════════════════
+//  ⚙️  CONFIG  — Replace with your Supabase values
+// ═══════════════════════════════════════════════
+const SUPABASE_URL     = 'https://ljmgektayizfbexbfpri.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqbWdla3RheWl6ZmJleGJmcHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTA1MDEsImV4cCI6MjA4ODk2NjUwMX0.sPxpwRwGaXaN7T7ctnebnF9zwxxVoGHnx3ZBkqYiLKY';
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let map, mode = null;
+let pendingLatLng = null;
+let trailPoints = [], trailTempMarkers = [], trailTempLine = null;
+let journeyLayer = null, gardenLayers = [];
+let sidebarOpen = false;
+let currentFilter = 'all';
+
+// Data stores
+let lcPins = [], sweetPins = [], snugglePins = [], trailPins = [];
+let markerRefs = {}; // id → {marker, data, type}
+
+// Image buffers for LC
+let lcImageFiles = [];
+
+// ═══════════════════════════════════════════════
+//  MAP
+// ═══════════════════════════════════════════════
+function initMap() {
+  map = L.map('map', { zoomControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    maxZoom: 19
+  }).addTo(map);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  map.on('click', onMapClick);
+  map.on('zoomend', updateLabelVisibility);
+}
+
+function onMapClick(e) {
+  if (!mode) return;
+  pendingLatLng = e.latlng;
+
+  if (mode === 'lc') {
+    document.getElementById('lc-coords-label').textContent =
+      `📍 ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+    openModal('modal-lc');
+  } else if (mode === 'sweet') {
+    document.getElementById('sweet-coords-label').textContent =
+      `📍 ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+    openModal('modal-sweet');
+  } else if (mode === 'snuggle') {
+    document.getElementById('snuggle-coords-label').textContent =
+      `📍 ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+    openModal('modal-snuggle');
+  } else if (mode === 'trail') {
+    addTrailPoint(e.latlng);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  LABELS (show on zoom ≥ 14)
+// ═══════════════════════════════════════════════
+function updateLabelVisibility() {
+  const zoom = map.getZoom();
+  document.querySelectorAll('.lc-label').forEach(el => {
+    el.style.display = zoom >= 14 ? 'block' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  FIT MAP
+// ═══════════════════════════════════════════════
+function fitMap() {
+  const all = [...lcPins, ...sweetPins, ...snugglePins];
+  trailPins.forEach(t => { if (t.points) all.push(...t.points.map(p=>({lat:p[0],lng:p[1]}))); });
+  if (!all.length) { map.setView([20,0],2); return; }
+  if (all.length === 1) { map.setView([all[0].lat,all[0].lng],13); return; }
+  map.fitBounds(L.latLngBounds(all.map(p=>[p.lat,p.lng])),{padding:[50,50]});
+}
+
+// ═══════════════════════════════════════════════
+//  MARKERS
+// ═══════════════════════════════════════════════
+function lcIcon(name) {
+  return L.divIcon({
+    className:'',
+    html:`<div class="lc-marker"><div class="lc-dot"><span class="lc-dot-inner">💕</span></div><div class="lc-label">${esc(name)}</div></div>`,
+    iconSize:[36,50], iconAnchor:[18,50], popupAnchor:[0,-54]
+  });
+}
+function sweetIcon() {
+  return L.divIcon({ className:'', html:`<div class="sweet-marker">💗</div>`, iconSize:[32,32], iconAnchor:[16,16] });
+}
+function snuggleIcon() {
+  return L.divIcon({ className:'', html:`<div class="snuggle-marker">🧸</div>`, iconSize:[32,32], iconAnchor:[16,16] });
+}
+function trailStarIcon() {
+  return L.divIcon({ className:'', html:`<div class="trail-star">⭐</div>`, iconSize:[32,32], iconAnchor:[16,16] });
+}
+
+function addLCMarker(pin) {
+  const m = L.marker([pin.lat,pin.lng], { icon: lcIcon(pin.name) }).addTo(map);
+  m.on('click', () => openLCDetail(pin));
+  markerRefs[pin.id] = { marker:m, data:pin, type:'lc' };
+  updateLabelVisibility();
+}
+function addSweetMarker(pin) {
+  const m = L.marker([pin.lat,pin.lng], { icon: sweetIcon() }).addTo(map);
+  m.on('click', () => openSweetDetail(pin));
+  markerRefs[pin.id] = { marker:m, data:pin, type:'sweet' };
+}
+function addSnuggleMarker(pin) {
+  const m = L.marker([pin.lat,pin.lng], { icon: snuggleIcon() }).addTo(map);
+  m.on('click', () => openSnuggleDetail(pin));
+  markerRefs[pin.id] = { marker:m, data:pin, type:'snuggle' };
+}
+function addTrailMarker(trail) {
+  if (!trail.points || !trail.points.length) return;
+  const center = trail.points[Math.floor(trail.points.length/2)];
+  const m = L.marker(center, { icon: trailStarIcon() }).addTo(map);
+  let trailLine = null;
+  let visible = false;
+  m.on('click', () => {
+    visible = !visible;
+    if (visible) {
+      trailLine = L.polyline(trail.points, {
+        color:'#d4956a', weight:3, dashArray:'8,6', opacity:.8
+      }).addTo(map);
+    } else {
+      if (trailLine) { map.removeLayer(trailLine); trailLine = null; }
+    }
+  });
+  markerRefs[trail.id] = { marker:m, data:trail, type:'trail', line:null };
+}
+
+// ═══════════════════════════════════════════════
+//  DETAIL PANELS
+// ═══════════════════════════════════════════════
+function openLCDetail(pin) {
+  const imgs = pin.images || [];
+  const imgStrip = imgs.length ? `
+    <div class="panel-image-strip">
+      ${imgs.map(url=>`<div class="panel-img-wrap"><img class="panel-img" src="${esc(url)}" loading="lazy"/></div>`).join('')}
+    </div>` : '';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="panel-type-badge">📍 Love Coordinate</div>
+    <div class="panel-title">${esc(pin.name)}</div>
+    ${pin.location ? `<div class="panel-location">📍 ${esc(pin.location)}</div>` : ''}
+    ${pin.date ? `<div class="panel-date">🗓️ ${formatDate(pin.date)}</div>` : ''}
+    ${imgStrip}
+    ${pin.description ? `<div class="panel-desc">${esc(pin.description)}</div>` : ''}
+  `;
+  openDetail();
+}
+function openSweetDetail(pin) {
+  document.getElementById('detail-content').innerHTML = `
+    <div class="panel-type-badge">💗 SweetSpot</div>
+    <div class="panel-title">${esc(pin.name)}</div>
+    <div class="panel-location" style="margin-top:8px;font-size:.85rem;color:var(--muted);">A meaningful little place 💕</div>
+  `;
+  openDetail();
+}
+function openSnuggleDetail(pin) {
+  const hasSong = pin.song_img;
+  const songCard = hasSong ? `
+    <div class="song-card">
+      ${pin.song_img
+        ? `<img class="song-cover" src="${esc(pin.song_img)}" onerror="this.style.display='none'" />`
+        : `<div class="song-cover-placeholder">🎵</div>`}
+      <div class="song-info">
+        <div class="song-title">${esc(pin.song_title || 'Our Song')}</div>
+        ${pin.song_url ? `<a class="song-link" href="${esc(pin.song_url)}" target="_blank" rel="noopener">▶ Listen on Spotify</a>` : '<div class="song-link">🎵 Our song</div>'}
+      </div>
+    </div>` : '';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="panel-type-badge">🧸 Snuggle Spot</div>
+    <div class="panel-title">${esc(pin.name)}</div>
+    ${songCard}
+  `;
+  openDetail();
+}
+
+function openDetail() { document.getElementById('detail-panel').classList.add('open'); }
+function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════
+//  LOAD DATA
+// ═══════════════════════════════════════════════
+async function loadAll() {
+  const [lc, sw, sn, tr] = await Promise.all([
+    sb.from('lc_pins').select('*').order('created_at'),
+    sb.from('sweet_pins').select('*').order('created_at'),
+    sb.from('snuggle_pins').select('*').order('created_at'),
+    sb.from('trail_pins').select('*').order('created_at'),
+  ]);
+  lcPins     = lc.data  || [];
+  sweetPins  = sw.data  || [];
+  snugglePins= sn.data  || [];
+  trailPins  = tr.data  || [];
+
+  lcPins.forEach(addLCMarker);
+  sweetPins.forEach(addSweetMarker);
+  snugglePins.forEach(addSnuggleMarker);
+  trailPins.forEach(addTrailMarker);
+  fitMap();
+  renderPinDom();
+  renderPinBoard();
+}
+
+// ═══════════════════════════════════════════════
+//  REALTIME
+// ═══════════════════════════════════════════════
+function subscribeRealtime() {
+  const handle = (table, arr, addFn, type) => {
+    sb.channel(`rt-${table}`).on('postgres_changes',{event:'INSERT',schema:'public',table},(p)=>{
+      const pin = p.new;
+      arr.push(pin);
+      addFn(pin);
+      renderPinDom();
+      renderPinBoard();
+      showToast(`New ${type} added! 💕`);
+    }).subscribe();
+  };
+  handle('lc_pins',     lcPins,      addLCMarker,      'Love Coordinate');
+  handle('sweet_pins',  sweetPins,   addSweetMarker,   'SweetSpot');
+  handle('snuggle_pins',snugglePins, addSnuggleMarker, 'Snuggle Spot');
+  handle('trail_pins',  trailPins,   addTrailMarker,   'Love Trail');
+}
+
+// ═══════════════════════════════════════════════
+//  SUBMIT PINS
+// ═══════════════════════════════════════════════
+async function submitLC() {
+  const name = document.getElementById('lc-name').value.trim();
+  if (!name || !pendingLatLng) { showToast('Please enter a name 💕'); return; }
+  const btn = document.querySelector('#modal-lc .btn-primary');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  let imageUrls = [];
+  for (const file of lcImageFiles) {
+    const url = await uploadImage(file, 'lc-images');
+    if (url) imageUrls.push(url);
+  }
+
+  const { error } = await sb.from('lc_pins').insert({
+    name,
+    location: document.getElementById('lc-location').value.trim() || null,
+    date: document.getElementById('lc-date').value || null,
+    description: document.getElementById('lc-desc').value.trim() || null,
+    images: imageUrls,
+    lat: pendingLatLng.lat,
+    lng: pendingLatLng.lng,
+  });
+  btn.disabled = false; btn.textContent = 'Save Memory 💕';
+  if (error) { showToast('Error saving. Check Supabase.'); console.error(error); return; }
+  closeModal('modal-lc'); cancelMode(); resetLCForm();
+  showToast('Love Coordinate saved 📍💕');
+}
+
+async function submitSweet() {
+  const name = document.getElementById('sweet-name').value.trim();
+  if (!name || !pendingLatLng) { showToast('Please enter a title 💗'); return; }
+  const btn = document.querySelector('#modal-sweet .btn-primary');
+  btn.disabled = true;
+  const { error } = await sb.from('sweet_pins').insert({ name, lat:pendingLatLng.lat, lng:pendingLatLng.lng });
+  btn.disabled = false;
+  if (error) { showToast('Error saving.'); return; }
+  closeModal('modal-sweet'); cancelMode();
+  showToast('SweetSpot added 💗');
+}
+
+async function submitSnuggle() {
+  const name = document.getElementById('snuggle-name').value.trim();
+  const songImg = document.getElementById('snuggle-song-img').value.trim();
+  if (!name || !pendingLatLng) { showToast('Please enter a name 🧸'); return; }
+  const btn = document.querySelector('#modal-snuggle .btn-primary');
+  btn.disabled = true;
+  const { error } = await sb.from('snuggle_pins').insert({
+    name, lat:pendingLatLng.lat, lng:pendingLatLng.lng,
+    song_url: document.getElementById('snuggle-song-url').value.trim() || null,
+    song_img: songImg || null,
+    song_title: document.getElementById('snuggle-song-title').value.trim() || null,
+  });
+  btn.disabled = false;
+  if (error) { showToast('Error saving.'); return; }
+  closeModal('modal-snuggle'); cancelMode();
+  showToast('Snuggle Spot saved 🧸');
+}
+
+// ── TRAIL ──
+function addTrailPoint(latlng) {
+  trailPoints.push([latlng.lat,latlng.lng]);
+  const tm = L.circleMarker([latlng.lat,latlng.lng],{
+    radius:5, color:'#d4956a', fillColor:'#fce8ef', fillOpacity:1, weight:2
+  }).addTo(map);
+  trailTempMarkers.push(tm);
+  if (trailTempLine) map.removeLayer(trailTempLine);
+  if (trailPoints.length > 1) {
+    trailTempLine = L.polyline(trailPoints,{color:'#d4956a',dashArray:'6,5',weight:2.5}).addTo(map);
+  }
+  document.getElementById('trail-point-count').textContent = `${trailPoints.length} point${trailPoints.length!==1?'s':''} added`;
+  document.getElementById('trail-done-btn').disabled = trailPoints.length < 2;
+}
+
+async function submitTrail() {
+  const name = document.getElementById('trail-name').value.trim();
+  if (!name || trailPoints.length < 2) { showToast('Add a name and at least 2 points'); return; }
+  const btn = document.getElementById('trail-done-btn');
+  btn.disabled = true;
+  const center = trailPoints[Math.floor(trailPoints.length/2)];
+  const { error } = await sb.from('trail_pins').insert({
+    name, points: trailPoints,
+    lat: center[0], lng: center[1],
+  });
+  btn.disabled = false;
+  if (error) { showToast('Error saving trail.'); return; }
+  // clear temp visuals
+  trailTempMarkers.forEach(m=>map.removeLayer(m));
+  if (trailTempLine) map.removeLayer(trailTempLine);
+  trailPoints=[]; trailTempMarkers=[]; trailTempLine=null;
+  closeModal('modal-trail'); cancelMode();
+  showToast('Love Trail saved ⭐');
+}
+
+// ═══════════════════════════════════════════════
+//  IMAGE UPLOAD
+// ═══════════════════════════════════════════════
+async function uploadImage(file, bucket) {
+  const ext = file.name.split('.').pop();
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type });
+  if (error) { console.error(error); return null; }
+  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+function handleLCImages(input) {
+  const files = Array.from(input.files);
+  lcImageFiles = [...lcImageFiles, ...files];
+  const strip = document.getElementById('preview-strip');
+  files.forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const idx = lcImageFiles.length - files.length + i;
+      const wrap = document.createElement('div');
+      wrap.className = 'preview-thumb';
+      wrap.innerHTML = `<img src="${e.target.result}"/><button onclick="removePreview(${idx},this)">✕</button>`;
+      strip.appendChild(wrap);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removePreview(idx, btn) {
+  lcImageFiles.splice(idx, 1);
+  btn.parentElement.remove();
+}
+
+function resetLCForm() {
+  ['lc-name','lc-location','lc-date','lc-desc'].forEach(id=>document.getElementById(id).value='');
+  lcImageFiles=[];
+  document.getElementById('preview-strip').innerHTML='';
+}
+
+// ═══════════════════════════════════════════════
+//  JOURNEY MAP  (dashed lines by date)
+// ═══════════════════════════════════════════════
+let journeyActive = false;
+function toggleJourney() {
+  journeyActive = !journeyActive;
+  document.getElementById('btn-journey').classList.toggle('active', journeyActive);
+  if (!journeyActive) { if(journeyLayer){map.removeLayer(journeyLayer);journeyLayer=null;} return; }
+  const dated = lcPins.filter(p=>p.date).sort((a,b)=>a.date.localeCompare(b.date));
+  if (dated.length < 2) { showToast('Need 2+ Love Coordinates with dates for Journey Map'); journeyActive=false; document.getElementById('btn-journey').classList.remove('active'); return; }
+  const pts = dated.map(p=>[p.lat,p.lng]);
+  journeyLayer = L.polyline(pts,{color:'#c2607a',dashArray:'10,7',weight:2.5,opacity:.8}).addTo(map);
+  showToast('Journey Map activated 🗺️');
+}
+
+// ═══════════════════════════════════════════════
+//  MEMORY GARDEN  (cluster zones)
+// ═══════════════════════════════════════════════
+let gardenActive = false;
+function toggleGarden() {
+  gardenActive = !gardenActive;
+  document.getElementById('btn-garden').classList.toggle('active', gardenActive);
+  gardenLayers.forEach(l=>map.removeLayer(l)); gardenLayers=[];
+  if (!gardenActive) { showToast('Memory Garden hidden'); return; }
+
+  const all = [...lcPins,...sweetPins,...snugglePins];
+  if (all.length < 7) { showToast('Need at least 7 memories for a Garden cluster'); gardenActive=false; document.getElementById('btn-garden').classList.remove('active'); return; }
+
+  // Simple grid-based clustering (~0.05 deg cells)
+  const CELL = 0.05;
+  const cells = {};
+  all.forEach(p => {
+    const cx = Math.floor(p.lat/CELL), cy = Math.floor(p.lng/CELL);
+    const key = `${cx},${cy}`;
+    if (!cells[key]) cells[key]={lat:cx*CELL+CELL/2,lng:cy*CELL+CELL/2,count:0,pins:[]};
+    cells[key].count++; cells[key].pins.push(p);
+  });
+
+  const pinks = ['#ffb3c6','#ff85a1','#ff4d79','#ffd6e0','#ffadc0'];
+  let colorIdx = 0;
+  Object.values(cells).filter(c=>c.count>=7).forEach(c=>{
+    const radius = 800 + c.count * 200;
+    const circle = L.circle([c.lat,c.lng],{
+      radius, color:pinks[colorIdx%pinks.length],
+      fillColor:pinks[colorIdx%pinks.length], fillOpacity:.22, weight:1.5, opacity:.5
+    }).addTo(map);
+    circle.on('click',()=>{
+      const names = c.pins.map(p=>`• ${p.name||'Memory'}`).join('\n');
+      showToast(`${c.count} memories here 🌸`);
+    });
+    gardenLayers.push(circle);
+    colorIdx++;
+  });
+
+  if (!gardenLayers.length) { showToast('No clusters with 7+ memories yet'); gardenActive=false; document.getElementById('btn-garden').classList.remove('active'); return; }
+  showToast(`${gardenLayers.length} cluster${gardenLayers.length>1?'s':''} found 🌿`);
+}
+
+// ═══════════════════════════════════════════════
+//  PINDOM SIDEBAR
+// ═══════════════════════════════════════════════
+function renderPinDom() {
+  const list = document.getElementById('pin-list');
+  let items = [];
+  if (currentFilter==='all'||currentFilter==='lc')      items.push(...lcPins.map(p=>({...p,type:'lc',icon:'📍',label:'Love Coord.'})));
+  if (currentFilter==='all'||currentFilter==='sweet')   items.push(...sweetPins.map(p=>({...p,type:'sweet',icon:'💗',label:'SweetSpot'})));
+  if (currentFilter==='all'||currentFilter==='snuggle') items.push(...snugglePins.map(p=>({...p,type:'snuggle',icon:'🧸',label:'Snuggle Spot'})));
+  if (currentFilter==='all'||currentFilter==='trail')   items.push(...trailPins.map(p=>({...p,type:'trail',icon:'⭐',label:'Love Trail'})));
+
+  if (!items.length) { list.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:.85rem;">No pins yet 🌸<br/>Start adding memories!</div>`; return; }
+
+  list.innerHTML = items.map(p=>`
+    <div class="pin-list-item" onclick="flyToPin('${p.id}','${p.type}')">
+      <div class="pin-list-icon">${p.icon}</div>
+      <div><div class="pin-list-title">${esc(p.name)}</div><div class="pin-list-type">${p.label}</div></div>
+    </div>`).join('');
+}
+
+function flyToPin(id, type) {
+  const ref = markerRefs[id];
+  if (!ref) return;
+  map.flyTo(ref.marker.getLatLng(), 15, { animate:true, duration:1 });
+  if (window.innerWidth < 640) closeSidebar();
+}
+
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  const sb_el = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (window.innerWidth < 640) {
+    sb_el.classList.toggle('open', sidebarOpen);
+    backdrop.classList.toggle('show', sidebarOpen);
+    sb_el.classList.remove('hidden');
+  } else {
+    sb_el.classList.toggle('hidden', !sidebarOpen);
+  }
+  document.getElementById('btn-pindom').classList.toggle('active', sidebarOpen);
+}
+function closeSidebar() {
+  sidebarOpen = false;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+  document.getElementById('sidebar').classList.add('hidden');
+  document.getElementById('btn-pindom').classList.remove('active');
+}
+document.getElementById('sidebar-backdrop').onclick = closeSidebar;
+
+document.querySelectorAll('.filter-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.filter;
+    renderPinDom();
+  });
+});
+
+// ═══════════════════════════════════════════════
+//  PINBOARD
+// ═══════════════════════════════════════════════
+function renderPinBoard() {
+  const grid = document.getElementById('pinboard-grid');
+  const images = [];
+  lcPins.forEach(p=>{
+    (p.images||[]).forEach(url=>images.push({url,name:p.name,id:p.id,lat:p.lat,lng:p.lng}));
+  });
+  if (!images.length) {
+    grid.innerHTML=`<div style="text-align:center;padding:40px;color:var(--muted);">No photos yet 🌸<br/>Add images to Love Coordinates!</div>`;
+    return;
+  }
+  grid.innerHTML = images.map(img=>`
+    <div class="board-card">
+      <img src="${esc(img.url)}" loading="lazy" alt="${esc(img.name)}" onerror="this.parentElement.style.display='none'"/>
+      <div class="board-card-overlay">${esc(img.name)}</div>
+      <div class="board-card-pin" onclick="flyToPinFromBoard(${img.lat},${img.lng})" title="Go to pin">📍</div>
+    </div>`).join('');
+}
+
+function flyToPinFromBoard(lat, lng) {
+  closePinboard();
+  map.flyTo([lat,lng], 15, { animate:true, duration:1 });
+}
+
+function openPinboard() {
+  renderPinBoard();
+  document.getElementById('pinboard-view').classList.add('open');
+}
+function closePinboard() {
+  document.getElementById('pinboard-view').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════
+//  MODE MANAGEMENT
+// ═══════════════════════════════════════════════
+const modeButtons = {
+  lc:'btn-add-lc', sweet:'btn-add-sweet', snuggle:'btn-add-snuggle', trail:'btn-add-trail'
+};
+const modeMessages = {
+  lc:'📍 Tap the map to place a Love Coordinate',
+  sweet:'💗 Tap the map to place a SweetSpot',
+  snuggle:'🧸 Tap the map to place a Snuggle Spot',
+  trail:'⭐ Tap the map to add trail points',
+};
+const mapClasses = { lc:'mode-love', sweet:'mode-sweet', snuggle:'mode-snuggle', trail:'mode-trail' };
+
+function setMode(newMode) {
+  // toggle off
+  if (mode === newMode) { cancelMode(); return; }
+  cancelMode();
+  mode = newMode;
+  document.getElementById('map').classList.add(mapClasses[newMode]);
+  document.getElementById(modeButtons[newMode]).classList.add('active');
+  const banner = document.getElementById('mode-banner');
+  banner.textContent = modeMessages[newMode];
+  banner.classList.add('show');
+  if (newMode === 'trail') openModal('modal-trail');
+}
+
+function cancelMode() {
+  mode = null;
+  Object.values(mapClasses).forEach(c=>document.getElementById('map').classList.remove(c));
+  Object.values(modeButtons).forEach(id=>document.getElementById(id).classList.remove('active'));
+  document.getElementById('mode-banner').classList.remove('show');
+  // cancel trail
+  trailTempMarkers.forEach(m=>map.removeLayer(m));
+  if (trailTempLine) map.removeLayer(trailTempLine);
+  trailPoints=[]; trailTempMarkers=[]; trailTempLine=null;
+  document.getElementById('trail-point-count').textContent='0 points added';
+  document.getElementById('trail-done-btn').disabled=true;
+}
+
+// ═══════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); cancelMode(); }
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',e=>{ if(e.target===el){closeModal(el.id);} });
+});
+
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+let toastT;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ═══════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d+'T00:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+}
+
+// ═══════════════════════════════════════════════
+//  WIRE BUTTONS
+// ═══════════════════════════════════════════════
+document.getElementById('btn-add-lc').onclick     = ()=>setMode('lc');
+document.getElementById('btn-add-sweet').onclick  = ()=>setMode('sweet');
+document.getElementById('btn-add-snuggle').onclick= ()=>setMode('snuggle');
+document.getElementById('btn-add-trail').onclick  = ()=>setMode('trail');
+document.getElementById('btn-journey').onclick    = toggleJourney;
+document.getElementById('btn-garden').onclick     = toggleGarden;
+document.getElementById('btn-pindom').onclick     = toggleSidebar;
+document.getElementById('btn-pinboard').onclick   = openPinboard;
+document.getElementById('detail-panel').onclick   = e=>{ if(e.target===e.currentTarget) closeDetail(); };
+
+// ═══════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════
+async function boot() {
+  initMap();
+  await loadAll();
+  subscribeRealtime();
+  const loading = document.getElementById('loading');
+  loading.classList.add('out');
+  setTimeout(()=>loading.style.display='none', 500);
+}
+boot();
+</script>
+</body>
+</html>

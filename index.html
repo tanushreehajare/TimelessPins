@@ -407,23 +407,37 @@ document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Escape'
 document.getElementById('sc').addEventListener('click',clearS);
 
 async function doSearch(q){
+  const b=document.getElementById('sr');
   try{
-    // Try specific search first, then fall back to broader search
-    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1&extratags=1&namedetails=1`;
-    const r=await fetch(url,{headers:{'Accept-Language':'en','User-Agent':'OurPinMap/1.0'}});
-    const d=await r.json();
-    if(d.length){renderR(d);return;}
-    // If nothing found, try without special chars and broader
-    const q2=q.replace(/[^a-zA-Z0-9 ]/g,' ').trim();
-    const r2=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q2)}&format=json&limit=6&addressdetails=1`,{headers:{'Accept-Language':'en'}});
+    // 1. Try Photon (better POI/building coverage)
+    const r1=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=en`);
+    const d1=await r1.json();
+    const feats=d1.features||[];
+    if(feats.length){renderPhoton(feats);return;}
+    // 2. Fallback: Nominatim
+    const r2=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`,{headers:{'Accept-Language':'en'}});
     const d2=await r2.json();
-    renderR(d2);
-  }catch{document.getElementById('sr').innerHTML='<div class="re">Search unavailable. Try again.</div>';}
+    if(d2.length){renderNominatim(d2);return;}
+    b.innerHTML='<div class="re">No places found.<br/>Try a shorter or simpler name — e.g. <em>"IIT Madras"</em> instead of the full hostel name.</div>';
+  }catch{b.innerHTML='<div class="re">Search unavailable. Check your connection.</div>';}
 }
 
-function renderR(rs){
+function renderPhoton(feats){
   const b=document.getElementById('sr');
-  if(!rs.length){b.innerHTML='<div class="re">No places found. Try a shorter name,<br/>e.g. "IIT Madras" or "Tunga Hostel Chennai".</div>';return;}
+  b.innerHTML=feats.map(f=>{
+    const p=f.properties;
+    const lat=f.geometry.coordinates[1];
+    const lon=f.geometry.coordinates[0];
+    const nm=p.name||p.street||p.city||'Unknown place';
+    const parts=[p.street,p.city,p.state,p.country].filter(Boolean);
+    const addr=parts.join(', ');
+    const ic=p.osm_key==='amenity'?'🍽️':p.osm_key==='tourism'?'🏛️':p.osm_key==='natural'?'🌿':p.osm_key==='highway'?'🛣️':(p.type==='city'||p.type==='town')?'🏙️':'📍';
+    return `<div class="ri" onclick="pickR(${lat},${lon},'${esc(nm)}')"><div class="ric">${ic}</div><div><div class="rn">${esc(nm)}</div><div class="ra">${esc(addr)}</div></div></div>`;
+  }).join('');
+}
+
+function renderNominatim(rs){
+  const b=document.getElementById('sr');
   b.innerHTML=rs.map(r=>{
     const nm=r.name||r.display_name.split(',')[0];
     const ic=r.class==='amenity'?'🍽️':r.class==='tourism'?'🏛️':r.class==='natural'?'🌿':(r.type==='city'||r.type==='town')?'🏙️':'📍';

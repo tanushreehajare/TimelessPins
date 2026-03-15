@@ -65,6 +65,48 @@ button{font-family:var(--fb);cursor:pointer;}
 .ib::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);background:var(--ink);color:white;font-size:.65rem;font-weight:500;padding:3px 8px;border-radius:20px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;}
 .ib:hover::after{opacity:1;}
 /* Trail show-all button — now a .tp pill like Journey/Garden */
+
+/* ═══ TRAIL FLOATING PANEL — non-blocking, sits above map bottom ═══ */
+#trail-panel{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  z-index:5000;
+  background:var(--cream);
+  border-radius:22px 22px 0 0;
+  box-shadow:0 -6px 32px rgba(180,80,110,.18);
+  border-top:1.5px solid var(--border);
+  transition:transform .32s cubic-bezier(.34,1.2,.64,1),max-height .28s ease;
+  transform:translateY(100%);
+  max-height:85vh;
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+#trail-panel.open{transform:translateY(0);}
+/* Collapsed mode — only the pick-indicator strip shows */
+#trail-panel.picking{
+  max-height:72px;
+  overflow:hidden;
+}
+#trail-panel-drag{
+  width:40px;height:4px;background:var(--border);border-radius:4px;
+  margin:12px auto 0;flex-shrink:0;
+}
+#trail-panel-body{padding:0 20px 32px;}
+#trail-panel-pick{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 20px 10px;flex-shrink:0;
+}
+#trail-panel-pick-icon{font-size:1.3rem;}
+#trail-panel-pick-txt{font-size:.85rem;font-weight:600;color:var(--rose-deep);flex:1;}
+#trail-panel-pick-cancel{
+  background:none;border:1.5px solid var(--border);border-radius:20px;
+  padding:5px 13px;font-size:.75rem;color:var(--muted);
+}
+#trail-panel-pick-cancel:hover{background:var(--rose-pale);color:var(--rose-deep);}
+/* Step dots inside panel */
+.tp-step{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:var(--rose-pale);border:1.5px solid var(--border);font-size:.8rem;color:var(--rose-deep);font-weight:600;margin-bottom:7px;}
+.tp-dot{width:9px;height:9px;border-radius:50%;background:var(--rose-deep);flex-shrink:0;}
+.tp-dot.done{background:#4caf50;}
 .tp{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:.74rem;font-weight:600;color:var(--rose-deep);transition:all .18s;box-shadow:var(--sx);white-space:nowrap;flex-shrink:0;}
 .tp:hover{background:var(--rose-pale);border-color:var(--rose);}
 .tp.active{background:var(--rose-deep);color:white;border-color:var(--rose-deep);box-shadow:0 3px 14px rgba(184,84,112,.3);}
@@ -192,14 +234,47 @@ input[type="date"].fi::-webkit-datetime-edit{padding:0;}
 input[type="date"].fi::-webkit-inner-spin-button{display:none;}
 input[type="date"].fi::-webkit-calendar-picker-indicator{opacity:.6;cursor:pointer;filter:invert(30%) sepia(60%) saturate(400%) hue-rotate(300deg);}
 /* Color picker row */
-.color-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:4px 0;}
-.color-swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;}
+.color-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0;}
+.color-swatch{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:transform .15s,border-color .15s;flex-shrink:0;}
 .color-swatch:hover{transform:scale(1.15);}
-.color-swatch.selected{border-color:var(--ink);transform:scale(1.1);}
-/* Trail step indicator */
-.trail-step{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:var(--rose-pale);border:1.5px solid var(--border);font-size:.82rem;color:var(--rose-deep);font-weight:600;margin-bottom:8px;}
-.trail-step-dot{width:10px;height:10px;border-radius:50%;background:var(--rose-deep);flex-shrink:0;}
-.trail-step-dot.done{background:#4caf50;}
+.color-swatch.selected{border-color:white;outline:2.5px solid var(--ink);transform:scale(1.1);}
+
+/* ═══ TRAIL DRAWER — bottom sheet, doesn't block map ═══ */
+#trail-drawer{
+  position:fixed;bottom:0;left:0;right:0;
+  z-index:8500;
+  background:var(--cream);
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -6px 30px rgba(180,80,110,.18);
+  padding:0 20px 36px;
+  transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.34,1.4,.64,1);
+  max-width:580px;
+  margin:0 auto;
+}
+#trail-drawer.open{transform:translateY(0);}
+.td-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:14px auto 18px;}
+.td-title{font-family:var(--fh);font-size:1.3rem;font-style:italic;color:var(--rose-deep);margin-bottom:4px;}
+.td-sub{font-size:.78rem;color:var(--muted);margin-bottom:16px;}
+
+/* Floating drawing status bar — appears while user draws on map */
+#trail-bar{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);
+  z-index:8400;
+  background:var(--white);border:1.5px solid var(--border);
+  border-radius:28px;padding:10px 18px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:var(--sh);
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  white-space:nowrap;
+}
+#trail-bar.show{transform:translateX(-50%) translateY(0);}
+#trail-bar-txt{font-size:.82rem;font-weight:600;color:var(--ink);}
+#trail-bar-dot{width:10px;height:10px;border-radius:50%;background:var(--rose-deep);flex-shrink:0;}
+#trail-bar-dot.done{background:#4caf50;}
+#trail-done-btn{padding:7px 16px;border-radius:20px;border:none;background:linear-gradient(135deg,var(--rose-mid),var(--rose-deep));color:white;font-family:var(--fb);font-size:.78rem;font-weight:600;cursor:pointer;box-shadow:0 3px 12px rgba(184,84,112,.3);transition:all .18s;}
+#trail-done-btn:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;}
+#trail-cancel-btn{padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-family:var(--fb);font-size:.78rem;cursor:pointer;}
 .uz{border:2px dashed var(--border);border-radius:11px;padding:18px;text-align:center;cursor:pointer;background:var(--white);position:relative;overflow:hidden;transition:all .18s;}
 .uz:hover{border-color:var(--rose);background:var(--rose-pale);}
 .uz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
@@ -459,42 +534,34 @@ input[type="date"].fi::-webkit-calendar-picker-indicator{opacity:.6;cursor:point
   </div>
 </div>
 
-<!-- Love Trail Modal — 2-step: pick points on map, then fill details -->
-<div class="mo" id="mo-trail">
-  <div class="mb">
-    <button class="mbc" onclick="closeModal('mo-trail')">✕</button>
-    <div class="mbt">⭐ Love Trail</div>
-    <div class="mbs" id="tr-cl">Click the map to set your start and end points</div>
-
-    <!-- Step indicators -->
-    <div id="tr-step1" class="trail-step">
-      <div class="trail-step-dot" id="tr-dot1"></div>
-      <span id="tr-step1-txt">Tap map to set start point</span>
-    </div>
-    <div id="tr-step2" class="trail-step">
-      <div class="trail-step-dot" id="tr-dot2"></div>
-      <span id="tr-step2-txt">Tap map to set end point</span>
-    </div>
-
-    <div class="fl" style="margin-top:14px;">
-      <label>Trail Name *</label>
-      <input class="fi" id="tr-n" placeholder="Our evening walks…" maxlength="60"/>
-    </div>
-    <div class="fl">
-      <label>Description (optional)</label>
-      <textarea class="ft" id="tr-de" placeholder="Tell the story of this trail…"></textarea>
-    </div>
-    <div class="fl">
-      <label>Trail Colour</label>
-      <div class="color-row" id="tr-colors">
-        <!-- populated by JS -->
-      </div>
-    </div>
-    <div class="ma">
-      <button class="bs" onclick="closeModal('mo-trail')">Cancel</button>
-      <button class="bp" id="tr-save" onclick="submitTrail()" disabled>Save Trail ⭐</button>
-    </div>
+<!-- Love Trail Drawer — Phase 1: name + color, slides up from bottom, map still tappable BEHIND it -->
+<div id="trail-drawer">
+  <div class="td-handle"></div>
+  <div class="td-title">⭐ Love Trail</div>
+  <div class="td-sub">Give your trail a name and colour, then tap "Draw" to trace it on the map</div>
+  <div class="fl"><label>Trail Name *</label>
+    <input class="fi" id="tr-n" placeholder="Our evening walks…" maxlength="60"/>
   </div>
+  <div class="fl">
+    <label>Description (optional)</label>
+    <textarea class="ft" id="tr-de" placeholder="Tell the story of this trail…" style="min-height:60px;"></textarea>
+  </div>
+  <div class="fl">
+    <label>Trail Colour</label>
+    <div class="color-row" id="tr-colors"></div>
+  </div>
+  <div class="ma">
+    <button class="bs" onclick="cancelTrailFull()">Cancel</button>
+    <button class="bp" id="tr-draw-btn" onclick="startDrawingTrail()">Draw on Map 🗺️</button>
+  </div>
+</div>
+
+<!-- Floating trail status bar — Phase 2: map is fully interactive, no overlay -->
+<div id="trail-bar">
+  <div id="trail-bar-dot"></div>
+  <span id="trail-bar-txt">Tap map — set START point</span>
+  <button id="trail-done-btn" disabled onclick="finishTrailDrawing()">Save Trail ⭐</button>
+  <button id="trail-cancel-btn" onclick="cancelTrailFull()">✕</button>
 </div>
 
 <!-- Pinboard -->
@@ -530,33 +597,6 @@ let lcPins=[],swPins=[],snPins=[],trPins=[];
 let refs={};
 let lcFiles=[], snFiles=[];
 
-/* ── TRAIL STATE ─────────────────────────────────── */
-const TRAIL_COLORS=['#b85470','#e07b39','#d4a017','#4a9e6b','#2e7ab5','#7b4fa0','#e05c8e','#3a3a3a'];
-let trColor=TRAIL_COLORS[0];
-let trStart=null, trEnd=null;
-let trStartMarker=null, trEndMarker=null, trPreviewLine=null;
-let trailsVisible=false; // toggle all trails
-
-// Per-trail state: trRefs[id] = { marker, line, visible }
-const trRefs={};
-
-/* Build color swatches */
-function buildColorSwatches(){
-  const row=document.getElementById('tr-colors');
-  TRAIL_COLORS.forEach(c=>{
-    const s=document.createElement('div');
-    s.className='color-swatch'+(c===trColor?' selected':'');
-    s.style.background=c;
-    s.title=c;
-    s.onclick=()=>{
-      trColor=c;
-      row.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('selected'));
-      s.classList.add('selected');
-    };
-    row.appendChild(s);
-  });
-}
-
 /* ── MAP INIT ──────────────────────────────────── */
 function initMap(){
   map=L.map('map',{zoomControl:false,minZoom:2,maxZoom:19,worldCopyJump:true,tap:true,tapTolerance:15});
@@ -568,6 +608,16 @@ function initMap(){
   map.on('click',onMapClick);
   map.on('zoomend',updLabels);
   buildColorSwatches();
+}
+
+/* ── MAP CLICK ─────────────────────────────────── */
+function onMapClick(e){
+  if(!mode)return;
+  if(mode==='lc'){pendingLL=e.latlng;document.getElementById('lc-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-lc');}
+  else if(mode==='sweet'){pendingLL=e.latlng;document.getElementById('sw-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-sweet');}
+  else if(mode==='snuggle'){pendingLL=e.latlng;document.getElementById('sn-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-snuggle');}
+  else if(mode==='trail-start'){setTrailStart(e.latlng);}
+  else if(mode==='trail-end'){setTrailEnd(e.latlng);}
 }
 
 /* ── SEARCH ─────────────────────────────────────── */
@@ -585,7 +635,6 @@ _inp.addEventListener('input',function(){
 _inp.addEventListener('keydown',e=>{if(e.key==='Escape')clearSearch();});
 _x.addEventListener('click',clearSearch);
 document.addEventListener('click',e=>{if(!document.getElementById('search-wrap').contains(e.target))hideDrop();});
-
 async function runSearch(q){
   const results=[];
   try{
@@ -618,104 +667,164 @@ function pinFromSearch(type){
 function clearSearch(){_inp.value='';_x.classList.remove('show');hideDrop();}
 function hideDrop(){_drop.classList.remove('show');_drop.innerHTML='';}
 
-/* ── MAP CLICK ─────────────────────────────────── */
-function onMapClick(e){
-  if(!mode)return;
-  if(mode==='lc'){pendingLL=e.latlng;document.getElementById('lc-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-lc');}
-  else if(mode==='sweet'){pendingLL=e.latlng;document.getElementById('sw-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-sweet');}
-  else if(mode==='snuggle'){pendingLL=e.latlng;document.getElementById('sn-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-snuggle');}
-  else if(mode==='trail-start'){setTrailStart(e.latlng);}
-  else if(mode==='trail-end'){setTrailEnd(e.latlng);}
+/* ── TRAIL STATE ─────────────────────────────────── */
+const TRAIL_COLORS=['#b85470','#e07b9e','#f4a7c0','#d4506e','#ff85a1','#c94f7c','#f7cad6','#e8366a'];
+let trColor=TRAIL_COLORS[0];
+let trStart=null, trEnd=null;
+let trStartMarker=null, trEndMarker=null, trPreviewLine=null;
+let trailsVisible=false;
+const trRefs={};
+
+/* ── BUILD COLOR SWATCHES ──────────────────────────── */
+function buildColorSwatches(){
+  const row=document.getElementById('tr-colors');
+  row.innerHTML='';
+  TRAIL_COLORS.forEach((c,i)=>{
+    const s=document.createElement('div');
+    s.className='color-swatch'+(i===0?' selected':'');
+    s.style.background=c;
+    s.onclick=()=>{
+      trColor=c;
+      row.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('selected'));
+      s.classList.add('selected');
+      // Update preview line color if already drawn
+      if(trPreviewLine) trPreviewLine.setStyle({color:c});
+      if(trStartMarker) trStartMarker.setStyle({color:c,fillColor:c});
+      if(trEndMarker) trEndMarker.setStyle({color:c,fillColor:c});
+    };
+    row.appendChild(s);
+  });
+}
+
+/* ── TRAIL DRAWER (Phase 1 — name + color, non-blocking) ── */
+function openTrailDrawer(){
+  clearTrailPicking();
+  trColor=TRAIL_COLORS[0];
+  buildColorSwatches();
+  document.getElementById('tr-n').value='';
+  document.getElementById('tr-de').value='';
+  document.getElementById('trail-drawer').classList.add('open');
+  document.getElementById('btn-trail').classList.add('active');
+}
+
+function startDrawingTrail(){
+  const n=document.getElementById('tr-n').value.trim();
+  if(!n){showToast('Please enter a trail name first');return;}
+  // Close drawer, show floating bar, enter drawing mode
+  document.getElementById('trail-drawer').classList.remove('open');
+  document.getElementById('trail-bar').classList.add('show');
+  document.getElementById('trail-bar-dot').classList.remove('done');
+  document.getElementById('trail-bar-txt').textContent='Tap map — set START point';
+  document.getElementById('trail-done-btn').disabled=true;
+  setMode('trail-start');
+}
+
+function cancelTrailFull(){
+  document.getElementById('trail-drawer').classList.remove('open');
+  document.getElementById('trail-bar').classList.remove('show');
+  clearTrailPicking();
+  cancelMode();
+  document.getElementById('btn-trail').classList.remove('active');
 }
 
 /* ── TRAIL POINT PICKING ─────────────────────────── */
 function setTrailStart(ll){
   trStart=ll;
   if(trStartMarker)map.removeLayer(trStartMarker);
-  trStartMarker=L.circleMarker([ll.lat,ll.lng],{radius:8,color:trColor,fillColor:trColor,fillOpacity:.9,weight:2.5}).addTo(map);
-  trStartMarker.bindTooltip('Start',{permanent:true,direction:'top',className:'',offset:[0,-10]});
-  // Update step indicator
-  document.getElementById('tr-dot1').classList.add('done');
-  document.getElementById('tr-step1-txt').textContent='Start set ✓';
-  // Move to end-point picking
+  trStartMarker=L.circleMarker([ll.lat,ll.lng],{radius:9,color:trColor,fillColor:trColor,fillOpacity:.9,weight:3}).addTo(map);
+  trStartMarker.bindTooltip('Start ⭐',{permanent:true,direction:'top',offset:[0,-12]});
   mode='trail-end';
   map.getContainer().classList.remove('mt-start');
   map.getContainer().classList.add('mt-end');
-  document.getElementById('mb').textContent='⭐ Now tap the map to set the end point';
+  document.getElementById('trail-bar-txt').textContent='Tap map — set END point';
   updateTrailPreview();
-  checkTrailReady();
 }
+
 function setTrailEnd(ll){
   trEnd=ll;
   if(trEndMarker)map.removeLayer(trEndMarker);
-  trEndMarker=L.circleMarker([ll.lat,ll.lng],{radius:8,color:trColor,fillColor:trColor,fillOpacity:.9,weight:2.5}).addTo(map);
-  trEndMarker.bindTooltip('End',{permanent:true,direction:'top',className:'',offset:[0,-10]});
-  document.getElementById('tr-dot2').classList.add('done');
-  document.getElementById('tr-step2-txt').textContent='End set ✓';
-  mode=null; // done picking
+  trEndMarker=L.circleMarker([ll.lat,ll.lng],{radius:9,color:trColor,fillColor:trColor,fillOpacity:.9,weight:3}).addTo(map);
+  trEndMarker.bindTooltip('End 🏁',{permanent:true,direction:'top',offset:[0,-12]});
+  mode=null;
   map.getContainer().classList.remove('mt-end');
-  document.getElementById('mb').textContent='⭐ Fill in trail details and save';
+  document.getElementById('trail-bar-dot').classList.add('done');
+  document.getElementById('trail-bar-txt').textContent='Trail drawn! ✓ Tap Save to keep it';
+  document.getElementById('trail-done-btn').disabled=false;
   updateTrailPreview();
-  checkTrailReady();
 }
+
 function updateTrailPreview(){
   if(trPreviewLine){map.removeLayer(trPreviewLine);trPreviewLine=null;}
   if(trStart&&trEnd){
-    trPreviewLine=L.polyline([[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],{color:trColor,weight:3,dashArray:'8,5',opacity:.7}).addTo(map);
+    trPreviewLine=L.polyline([[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],{color:trColor,weight:4,dashArray:'10,6',opacity:.8}).addTo(map);
   }
 }
-function checkTrailReady(){
-  const ready=trStart&&trEnd;
-  document.getElementById('tr-save').disabled=!ready;
-}
+
 function clearTrailPicking(){
   if(trStartMarker){map.removeLayer(trStartMarker);trStartMarker=null;}
   if(trEndMarker){map.removeLayer(trEndMarker);trEndMarker=null;}
   if(trPreviewLine){map.removeLayer(trPreviewLine);trPreviewLine=null;}
   trStart=null;trEnd=null;
-  // Reset step indicators
-  document.getElementById('tr-dot1').classList.remove('done');
-  document.getElementById('tr-step1-txt').textContent='Tap map to set start point';
-  document.getElementById('tr-dot2').classList.remove('done');
-  document.getElementById('tr-step2-txt').textContent='Tap map to set end point';
-  document.getElementById('tr-save').disabled=true;
+}
+
+async function finishTrailDrawing(){
+  const n=document.getElementById('tr-n').value.trim();
+  if(!n||!trStart||!trEnd){showToast('Missing trail name or points');return;}
+  const btn=document.getElementById('trail-done-btn');
+  btn.disabled=true;btn.textContent='Saving…';
+  try{
+    const{error}=await sb.from('trail_pins').insert({
+      name:n,
+      description:document.getElementById('tr-de').value.trim()||null,
+      start_lat:trStart.lat,start_lng:trStart.lng,
+      end_lat:trEnd.lat,end_lng:trEnd.lng,
+      points:[[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],
+      lat:trStart.lat,lng:trStart.lng,
+      color:trColor,
+    });
+    if(error)throw error;
+    document.getElementById('trail-bar').classList.remove('show');
+    clearTrailPicking();
+    cancelMode();
+    document.getElementById('btn-trail').classList.remove('active');
+    document.getElementById('tr-n').value='';
+    document.getElementById('tr-de').value='';
+    showToast('Love Trail saved! ⭐');
+  }catch(err){
+    console.error(err);showToast('Error saving trail — try again');
+    btn.disabled=false;btn.textContent='Save Trail ⭐';
+  }
 }
 
 /* ── TRAIL MARKER & LINE ─────────────────────────── */
 function trailStarIcon(color){
   return L.divIcon({
     className:'',
-    html:`<div class="tr-star" style="color:${color};text-shadow:0 2px 6px rgba(0,0,0,.3);">⭐</div>`,
+    html:`<div class="tr-star" style="color:${color};">⭐</div>`,
     iconSize:[28,28],iconAnchor:[14,14],
   });
 }
 
 function addTR(t){
+  if(!t.start_lat||!t.start_lng||!t.end_lat||!t.end_lng)return;
   const start=[t.start_lat,t.start_lng];
   const end=[t.end_lat,t.end_lng];
   const color=t.color||'#b85470';
-  // Always-visible star marker at start
   const m=L.marker(start,{icon:trailStarIcon(color)}).addTo(map);
-  // Line hidden by default; shown on click
-  const ln=L.polyline([start,end],{color,weight:4,opacity:.85}).addTo(map);
-  ln.setStyle({opacity:0});
+  const ln=L.polyline([start,end],{color,weight:4,opacity:0}).addTo(map);
   let visible=false;
   m.on('click',()=>{
     visible=!visible;
     ln.setStyle({opacity:visible?.85:0});
-    if(visible)map.fitBounds(ln.getBounds(),{padding:[40,40]});
+    if(visible)map.fitBounds(ln.getBounds(),{padding:[50,50]});
   });
-  m.on('click',()=>{}); // already handled above
+  // Show name on hover
+  m.bindTooltip(`<b>⭐ ${esc(t.name)}</b>${t.description?`<br><span style="font-size:.75rem;color:#888">${esc(t.description)}</span>`:''}`,{direction:'top',offset:[0,-10]});
   trRefs[t.id]={marker:m,line:ln,visible:false};
   refs[t.id]={marker:m,type:'trail'};
-  // Bind detail popup on right click / long press
-  m.bindPopup(`<div style="padding:8px 12px;font-family:var(--fb);min-width:140px;">
-    <div style="font-weight:700;color:#b85470;margin-bottom:4px;">⭐ ${esc(t.name)}</div>
-    ${t.description?`<div style="font-size:.8rem;color:#666;">${esc(t.description)}</div>`:''}
-  </div>`);
 }
 
-/* Toggle all trails visibility */
+/* Toggle all trails */
 function toggleAllTrails(){
   trailsVisible=!trailsVisible;
   document.getElementById('btn-trails-show').classList.toggle('active',trailsVisible);
@@ -723,7 +832,7 @@ function toggleAllTrails(){
     r.line.setStyle({opacity:trailsVisible?.85:0});
     r.visible=trailsVisible;
   });
-  showToast(trailsVisible?'Sparkles — all trails visible ✨':'Trails hidden');
+  showToast(trailsVisible?'All trails visible ✨':'Trails hidden');
 }
 
 /* ── LABELS ──────────────────────────────────────── */
@@ -841,32 +950,6 @@ async function submitSnuggle(){
     closeModal('mo-snuggle');resetSN();showToast('Snuggle Spot saved! 🧸');
   }catch(err){console.error(err);showToast('Error saving — please try again');}
   finally{btn.disabled=false;btn.textContent='Save Spot 🧸';}
-}
-
-async function submitTrail(){
-  const n=document.getElementById('tr-n').value.trim();
-  if(!n){showToast('Please enter a trail name');return;}
-  if(!trStart||!trEnd){showToast('Please set both start and end points on the map');return;}
-  const btn=document.getElementById('tr-save');btn.disabled=true;btn.textContent='Saving…';
-  try{
-    const{error}=await sb.from('trail_pins').insert({
-      name:n,
-      description:document.getElementById('tr-de').value.trim()||null,
-      start_lat:trStart.lat,start_lng:trStart.lng,
-      end_lat:trEnd.lat,end_lng:trEnd.lng,
-      // Store path as points array for compatibility
-      points:[[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],
-      lat:trStart.lat,lng:trStart.lng, // centroid for list
-      color:trColor,
-    });
-    if(error)throw error;
-    closeModal('mo-trail');
-    clearTrailPicking();
-    document.getElementById('tr-n').value='';
-    document.getElementById('tr-de').value='';
-    showToast('Love Trail saved! ⭐');
-  }catch(err){console.error(err);showToast('Error saving trail — please try again');}
-  finally{btn.disabled=false;btn.textContent='Save Trail ⭐';}
 }
 
 /* ── UPLOAD ──────────────────────────────────────── */
@@ -1004,7 +1087,6 @@ function openM(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){
   document.getElementById(id).classList.remove('open');
   cancelMode();pendingLL=null;
-  if(id==='mo-trail')clearTrailPicking();
 }
 document.querySelectorAll('.mo').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);}));
 document.getElementById('dp').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDetail();});
@@ -1019,16 +1101,7 @@ function showToast(msg){const t=document.getElementById('toast');t.textContent=m
 document.getElementById('btn-lc').onclick      =()=>setMode('lc');
 document.getElementById('btn-sweet').onclick   =()=>setMode('sweet');
 document.getElementById('btn-snuggle').onclick =()=>setMode('snuggle');
-document.getElementById('btn-trail').onclick   =()=>{
-  // Reset trail state and open modal for detail input
-  clearTrailPicking();
-  // Reset color to default
-  trColor=TRAIL_COLORS[0];
-  document.querySelectorAll('.color-swatch').forEach((s,i)=>s.classList.toggle('selected',i===0));
-  openM('mo-trail');
-  // Enter start-point picking mode
-  setMode('trail-start');
-};
+document.getElementById('btn-trail').onclick=()=>openTrailDrawer();
 document.getElementById('btn-trails-show').onclick=toggleAllTrails;
 document.getElementById('btn-journey').onclick =toggleJourney;
 document.getElementById('btn-garden').onclick  =toggleGarden;

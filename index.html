@@ -520,7 +520,9 @@ button{font-family:var(--fb);cursor:pointer;}
 <script>
 const SUPABASE_URL      = 'https://ljmgektayizfbexbfpri.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqbWdla3RheWl6ZmJleGJmcHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTA1MDEsImV4cCI6MjA4ODk2NjUwMX0.sPxpwRwGaXaN7T7ctnebnF9zwxxVoGHnx3ZBkqYiLKY';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let sb = null;
+try { sb = (window.supabase||window.supabaseJs||{createClient:null}).createClient?.(SUPABASE_URL, SUPABASE_ANON_KEY) || null; }
+catch(e){ console.warn('Supabase init failed:', e); }
 
 let map, mode=null, pendingLL=null;
 let trailPts=[],trailMs=[],trailLine=null;
@@ -558,6 +560,10 @@ function initMap(){
   L.control.zoom({position:'bottomright'}).addTo(map);
   map.on('click', onMapClick);
   map.on('zoomend', updLabels);
+  // Create icons here — Leaflet is definitely loaded at this point
+  swIcon = L.divIcon({className:'',html:'<div class="sw-m">💗</div>',iconSize:[30,30],iconAnchor:[15,15]});
+  snIcon = L.divIcon({className:'',html:'<div class="sn-m">🧸</div>',iconSize:[30,30],iconAnchor:[15,15]});
+  trIcon = L.divIcon({className:'',html:'<div class="tr-m">⭐</div>',iconSize:[32,32],iconAnchor:[16,16]});
 }
 
 /* ── SEARCH ENGINE ── */
@@ -696,5 +702,41 @@ function fitMap(){
 }
 
 /* ── MARKERS ── */
+let swIcon, snIcon, trIcon; // created inside initMap() after Leaflet is ready
 function lcIcon(n){ return L.divIcon({className:'',html:`<div class="lc-m"><div class="lc-d"><span class="lc-di">💕</span></div><div class="lc-l">${esc(n)}</div></div>`,iconSize:[34,52],iconAnchor:[17,52],popupAnchor:[0,-56]}); }
-const swIcon=L.divIcon({className:'',html:`<div class="sw-m">💗</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+
+function addLC(p){ const m=L.marker([p.lat,p.lng],{icon:lcIcon(p.name)}).addTo(map); m.on('click',()=>openLCD(p)); refs[p.id]={marker:m,type:'lc'}; updLabels(); }
+function addSW(p){ const m=L.marker([p.lat,p.lng],{icon:swIcon}).addTo(map); m.on('click',()=>openSWD(p)); refs[p.id]={marker:m,type:'sweet'}; }
+function addSN(p){ const m=L.marker([p.lat,p.lng],{icon:snIcon}).addTo(map); m.on('click',()=>openSND(p)); refs[p.id]={marker:m,type:'snuggle'}; }
+function addTR(t){
+  if(!t.points||t.points.length<2) return;
+  const c=t.points[Math.floor(t.points.length/2)];
+  const m=L.marker(c,{icon:trIcon}).addTo(map);
+  let ln=null,vis=false;
+  m.on('click',()=>{ vis=!vis; if(vis) ln=L.polyline(t.points,{color:'#b85470',weight:2.5,dashArray:'8,6',opacity:.8}).addTo(map); else { if(ln){map.removeLayer(ln);ln=null;} } });
+  refs[t.id]={marker:m,type:'trail'};
+}
+
+/* ── DETAILS ── */
+function openLCD(p){
+  const imgs=(p.images||[]).map(u=>`<img src="${esc(u)}" loading="lazy"/>`).join('');
+  document.getElementById('dc').innerHTML=`
+    <div class="badge">📍 Love Coordinate</div>
+    <div class="stit">${esc(p.name)}</div>
+    ${p.location?`<div class="sloc">📍 ${esc(p.location)}</div>`:''}
+    ${p.date?`<div class="sdt">🗓️ ${fmtD(p.date)}</div>`:''}
+    ${imgs?`<div class="istrip">${imgs}</div>`:''}
+    ${p.description?`<div class="sdesc">${esc(p.description)}</div>`:''}`;
+  openDetail();
+}
+function openSWD(p){
+  document.getElementById('dc').innerHTML=`<div class="badge">💗 Sweet Spot</div><div class="stit">${esc(p.name)}</div><div class="sloc" style="margin-top:8px;">A meaningful little place 💕</div>`;
+  openDetail();
+}
+function openSND(p){
+  document.getElementById('dc').innerHTML=`
+    <div class="badge">🧸 Snuggle Spot</div>
+    <div class="stit">${esc(p.name)}</div>
+    ${p.song_img?`<div class="sc"><img src="${esc(p.song_img)}" onerror="this.style.display='none'"/>
+      <div><div class="sci">${esc(p.song_title||'Our Song')}</div>
+      ${p.song_url?`<a class="sca" href="${esc(p.song_url)}" target="_blank" rel="noopener">▶ Listen on Spotify</a>`:`<div class="sca" style="color:#c4a0e8">🎵 Our song</div>`}

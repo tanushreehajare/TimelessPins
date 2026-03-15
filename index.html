@@ -4,7 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>Our PinMap 🌸</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -37,66 +36,57 @@ button{font-family:var(--fb);cursor:pointer;}
 #map .leaflet-tile{filter:sepia(0.15) saturate(0.85) hue-rotate(300deg) brightness(1.03);}
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
-/* GEOCODER SEARCH */
-.leaflet-control-geocoder{
-  position:fixed!important;top:68px!important;left:50%!important;
-  transform:translateX(-50%)!important;z-index:1500!important;
-  width:min(400px,calc(100vw - 28px))!important;
-  border:none!important;box-shadow:none!important;
-  background:transparent!important;margin:0!important;float:none!important;
+/* SEARCH BAR */
+#search-wrap{
+  position:fixed;top:68px;left:50%;transform:translateX(-50%);
+  z-index:1500;width:min(400px,calc(100vw - 28px));
 }
-/* Hide the toggle button that sits outside — we embed the icon inside */
-.leaflet-control-geocoder-toggle{display:none!important;}
-/* Always show the form */
-.leaflet-control-geocoder-expanded .leaflet-control-geocoder-form,
-.leaflet-control-geocoder-form{
-  display:flex!important;align-items:center!important;
-  background:var(--white)!important;border:1.5px solid var(--border)!important;
-  border-radius:28px!important;padding:0 16px 0 14px!important;
-  box-shadow:var(--sh)!important;gap:0!important;
-  transition:border-color .2s,box-shadow .2s!important;
-  position:relative!important;
+#search-bar{
+  display:flex;align-items:center;gap:10px;
+  background:var(--white);border:1.5px solid var(--border);
+  border-radius:28px;padding:0 16px;
+  box-shadow:var(--sh);transition:border-color .2s,box-shadow .2s;
 }
-.leaflet-control-geocoder-form:focus-within{
-  border-color:var(--rose-deep)!important;
-  box-shadow:0 6px 30px rgba(184,84,112,.18),0 0 0 3px rgba(184,84,112,.08)!important;
+#search-bar:focus-within{
+  border-color:var(--rose-deep);
+  box-shadow:0 6px 30px rgba(184,84,112,.18),0 0 0 3px rgba(184,84,112,.08);
 }
-/* Search icon inside — using ::before on the form */
-.leaflet-control-geocoder-form::before{
-  content:'🔍';font-size:.9rem;
-  flex-shrink:0;margin-right:8px;
-  filter:sepia(1) saturate(4) hue-rotate(290deg) brightness(0.6);
+.search-ico{
+  flex-shrink:0;font-size:.9rem;line-height:1;
+  color:var(--rose-deep);opacity:.85;
+  /* SVG magnifier in rose colour */
+  display:flex;align-items:center;
 }
-.leaflet-control-geocoder-form input{
-  flex:1!important;border:none!important;outline:none!important;
-  font-family:var(--fb)!important;font-size:.88rem!important;
-  color:var(--ink)!important;padding:12px 0!important;
-  background:transparent!important;min-width:0!important;
+#search-inp{
+  flex:1;border:none;outline:none;
+  font-family:var(--fb);font-size:.88rem;color:var(--ink);
+  padding:12px 0;background:transparent;min-width:0;
 }
-.leaflet-control-geocoder-form input::placeholder{color:var(--muted)!important;}
-/* Hide the submit button inside form */
-.leaflet-control-geocoder-form button[type=submit]{display:none!important;}
-/* Results dropdown */
-.leaflet-control-geocoder-alternatives{
-  background:var(--white)!important;border:1.5px solid var(--border)!important;
-  border-radius:16px!important;margin-top:6px!important;
-  box-shadow:var(--sh)!important;overflow:hidden!important;
-  list-style:none!important;padding:0!important;max-height:260px!important;
-  overflow-y:auto!important;
+#search-inp::placeholder{color:var(--muted);}
+#search-x{
+  background:none;border:none;color:var(--muted);
+  font-size:.85rem;padding:2px;line-height:1;
+  display:none;flex-shrink:0;transition:color .15s;
 }
-.leaflet-control-geocoder-alternatives li{border-bottom:1px solid var(--border)!important;}
-.leaflet-control-geocoder-alternatives li:last-child{border-bottom:none!important;}
-.leaflet-control-geocoder-alternatives a{
-  display:block!important;padding:11px 16px!important;
-  font-family:var(--fb)!important;font-size:.84rem!important;
-  color:var(--ink)!important;text-decoration:none!important;
-  transition:background .15s!important;line-height:1.4!important;
+#search-x:hover{color:var(--rose-deep);}
+#search-x.show{display:block;}
+#search-drop{
+  background:var(--white);border:1.5px solid var(--border);
+  border-radius:16px;margin-top:6px;
+  box-shadow:var(--sh);overflow:hidden;
+  display:none;max-height:260px;overflow-y:auto;
 }
-.leaflet-control-geocoder-alternatives a:hover{background:var(--rose-pale)!important;}
-.leaflet-control-geocoder-alternatives a b{
-  font-weight:600!important;display:block!important;
-  color:var(--rose-deep)!important;margin-bottom:1px!important;
+#search-drop.show{display:block;}
+.sd-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 16px;cursor:pointer;
+  border-bottom:1px solid var(--border);transition:background .15s;
 }
+.sd-item:last-child{border-bottom:none;}
+.sd-item:hover{background:var(--rose-pale);}
+.sd-name{font-size:.85rem;font-weight:600;color:var(--ink);line-height:1.3;}
+.sd-addr{font-size:.72rem;color:var(--muted);margin-top:2px;}
+.sd-msg{padding:14px 16px;font-size:.82rem;color:var(--muted);text-align:center;}
 
 /* MODE BANNER */
 #mb{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:var(--rose-deep);color:white;padding:10px 22px;border-radius:30px;font-size:.82rem;font-weight:600;z-index:400;box-shadow:var(--sh);display:none;pointer-events:none;animation:pb 1.8s ease-in-out infinite;letter-spacing:.2px;}
@@ -232,7 +222,7 @@ button{font-family:var(--fb);cursor:pointer;}
   #sidebar.hidden{transform:translateX(-100%);}
   .tgl{display:none;}
   .logo{font-size:1.1rem;}
-  .leaflet-control-geocoder{top:64px!important;}
+  #search-wrap{top:62px;}
 }
 </style>
 </head>
@@ -285,6 +275,17 @@ button{font-family:var(--fb);cursor:pointer;}
 
   <div id="map"></div>
 
+  <!-- Search bar — fixed over map -->
+  <div id="search-wrap">
+    <div id="search-bar">
+      <span class="search-ico">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b85470" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input id="search-inp" type="text" placeholder="Search for a place…" autocomplete="off" spellcheck="false"/>
+      <button id="search-x">✕</button>
+    </div>
+    <div id="search-drop"></div>
+  </div>
 </div>
 
 <div id="mb"></div>
@@ -379,7 +380,6 @@ button{font-family:var(--fb);cursor:pointer;}
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL     = 'https://ljmgektayizfbexbfpri.supabase.co';
@@ -401,31 +401,73 @@ function initMap(){
     subdomains:'abcd', maxZoom:19
   }).addTo(map);
   L.control.zoom({position:'bottomright'}).addTo(map);
-
-  // Geocoder search — always expanded, styled to match app
-  const geocoder = L.Control.geocoder({
-    defaultMarkGeocode: false,
-    collapsed: false,
-    placeholder: 'Search for a place…',
-    errorMessage: 'Nothing found. Try a different name.',
-    geocoder: L.Control.Geocoder.nominatim({
-      geocodingQueryParams: {
-        'accept-language': 'en',
-        'limit': 8,
-        'addressdetails': 1,
-      }
-    })
-  })
-  .on('markgeocode', function(e){
-    const center = e.geocode.center;
-    map.flyTo(center, 16, {animate:true, duration:1});
-    showToast('📍 ' + e.geocode.name.split(',')[0]);
-  })
-  .addTo(map);
-
-  map.on('click', onMapClick);
-  map.on('zoomend', updLabels);
+  map.on('click',onMapClick);
+  map.on('zoomend',updLabels);
 }
+
+/* ── SEARCH ─────────────────────────────────────── */
+let _st=null, _sm=null;
+const _inp = document.getElementById('search-inp');
+const _drop = document.getElementById('search-drop');
+const _x    = document.getElementById('search-x');
+
+_inp.addEventListener('input', function(){
+  const q = this.value.trim();
+  _x.classList.toggle('show', q.length > 0);
+  clearTimeout(_st);
+  if(q.length < 2){ hideDrop(); return; }
+  _drop.innerHTML = '<div class="sd-msg">Searching…</div>';
+  _drop.classList.add('show');
+  _st = setTimeout(()=> runSearch(q), 400);
+});
+
+_inp.addEventListener('keydown', e=>{ if(e.key==='Escape') clearSearch(); });
+_x.addEventListener('click', clearSearch);
+document.addEventListener('click', e=>{
+  if(!document.getElementById('search-wrap').contains(e.target)) hideDrop();
+});
+
+async function runSearch(q){
+  const results = [];
+  try{
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1&accept-language=en`,
+      { headers:{ 'Accept-Language':'en' } }
+    );
+    const data = await r.json();
+    data.forEach(d=>{
+      const name = d.display_name.split(',')[0];
+      const addr = d.display_name.split(',').slice(1,4).join(',').trim();
+      results.push({ lat:+d.lat, lon:+d.lon, name, addr });
+    });
+  } catch(e){}
+
+  if(!results.length){
+    _drop.innerHTML = '<div class="sd-msg">No places found — try a shorter name</div>';
+    return;
+  }
+  _drop.innerHTML = results.map((r,i)=>`
+    <div class="sd-item" onclick="selectPlace(${r.lat},${r.lon},'${esc(r.name)}')">
+      <div>
+        <div class="sd-name">${esc(r.name)}</div>
+        <div class="sd-addr">${esc(r.addr)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selectPlace(lat,lon,name){
+  clearSearch();
+  map.flyTo([lat,lon], 15, {animate:true, duration:1.2});
+  if(_sm) map.removeLayer(_sm);
+  _sm = L.circleMarker([lat,lon],{
+    radius:7, color:'#b85470', fillColor:'#fdeef3', fillOpacity:1, weight:2.5
+  }).addTo(map);
+  showToast('📍 ' + name);
+  setTimeout(()=>{ if(_sm){map.removeLayer(_sm);_sm=null;} }, 5000);
+}
+
+function clearSearch(){ _inp.value=''; _x.classList.remove('show'); hideDrop(); }
+function hideDrop(){ _drop.classList.remove('show'); _drop.innerHTML=''; }
 
 function onMapClick(e){
   if(!mode)return;

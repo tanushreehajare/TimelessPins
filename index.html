@@ -740,3 +740,264 @@ function openSND(p){
     ${p.song_img?`<div class="sc"><img src="${esc(p.song_img)}" onerror="this.style.display='none'"/>
       <div><div class="sci">${esc(p.song_title||'Our Song')}</div>
       ${p.song_url?`<a class="sca" href="${esc(p.song_url)}" target="_blank" rel="noopener">▶ Listen on Spotify</a>`:`<div class="sca" style="color:#c4a0e8">🎵 Our song</div>`}
+      </div></div>`:''}`;
+  openDetail();
+}
+function openDetail(){ document.getElementById('dp').classList.add('open'); }
+function closeDetail(){ document.getElementById('dp').classList.remove('open'); }
+
+/* ── LOAD ── */
+async function loadAll(){
+  const[lc,sw,sn,tr]=await Promise.all([
+    sb.from('lc_pins').select('*').order('created_at'),
+    sb.from('sweet_pins').select('*').order('created_at'),
+    sb.from('snuggle_pins').select('*').order('created_at'),
+    sb.from('trail_pins').select('*').order('created_at'),
+  ]);
+  lcPins=lc.data||[]; swPins=sw.data||[]; snPins=sn.data||[]; trPins=tr.data||[];
+  lcPins.forEach(addLC); swPins.forEach(addSW); snPins.forEach(addSN); trPins.forEach(addTR);
+  fitMap(); renderList(); renderPB();
+}
+
+/* ── REALTIME ── */
+function subRT(){
+  const s=(t,a,fn,l)=>sb.channel('rt-'+t).on('postgres_changes',{event:'INSERT',schema:'public',table:t},p=>{
+    a.push(p.new); fn(p.new); renderList(); renderPB(); showToast(`New ${l} added 💕`);
+  }).subscribe();
+  s('lc_pins',lcPins,addLC,'Love Coordinate');
+  s('sweet_pins',swPins,addSW,'Sweet Spot');
+  s('snuggle_pins',snPins,addSN,'Snuggle Spot');
+  s('trail_pins',trPins,addTR,'Love Trail');
+}
+
+/* ── SUBMIT ── */
+async function submitLC(){
+  const n=document.getElementById('lc-n').value.trim();
+  if(!n||!pendingLL){ showToast('Please enter a memory name'); return; }
+  const b=document.querySelector('#mo-lc .bp'); b.disabled=true; b.textContent='Saving…';
+  let imgs=[]; for(const f of lcFiles){ const u=await upImg(f); if(u) imgs.push(u); }
+  const{error}=await sb.from('lc_pins').insert({name:n,images:imgs,location:document.getElementById('lc-loc').value.trim()||null,date:document.getElementById('lc-d').value||null,description:document.getElementById('lc-de').value.trim()||null,lat:pendingLL.lat,lng:pendingLL.lng});
+  b.disabled=false; b.textContent='Save Memory 💕';
+  if(error){ showToast('Error saving. Check Supabase config.'); console.error(error); return; }
+  closeModal('mo-lc'); cancelMode(); resetLC(); showToast('Love Coordinate saved! 📍💕');
+}
+async function submitSweet(){
+  const n=document.getElementById('sw-n').value.trim();
+  if(!n||!pendingLL){ showToast('Please enter a title'); return; }
+  const b=document.querySelector('#mo-sweet .bp'); b.disabled=true;
+  const{error}=await sb.from('sweet_pins').insert({name:n,lat:pendingLL.lat,lng:pendingLL.lng});
+  b.disabled=false; if(error){ showToast('Error saving.'); return; }
+  closeModal('mo-sweet'); cancelMode(); showToast('Sweet Spot added! 💗');
+}
+async function submitSnuggle(){
+  const n=document.getElementById('sn-n').value.trim();
+  if(!n||!pendingLL){ showToast('Please enter a place name'); return; }
+  const b=document.querySelector('#mo-snuggle .bp'); b.disabled=true;
+  const{error}=await sb.from('snuggle_pins').insert({name:n,lat:pendingLL.lat,lng:pendingLL.lng,song_url:document.getElementById('sn-su').value.trim()||null,song_img:document.getElementById('sn-si').value.trim()||null,song_title:document.getElementById('sn-st').value.trim()||null});
+  b.disabled=false; if(error){ showToast('Error saving.'); return; }
+  closeModal('mo-snuggle'); cancelMode(); showToast('Snuggle Spot saved! 🧸');
+}
+function addTP(ll){
+  trailPts.push([ll.lat,ll.lng]);
+  const m=L.circleMarker([ll.lat,ll.lng],{radius:5,color:'#b85470',fillColor:'#fdeef3',fillOpacity:1,weight:2}).addTo(map);
+  trailMs.push(m);
+  if(trailLine) map.removeLayer(trailLine);
+  if(trailPts.length>1) trailLine=L.polyline(trailPts,{color:'#b85470',dashArray:'6,5',weight:2}).addTo(map);
+  const n=trailPts.length;
+  document.getElementById('tc').textContent=`${n} point${n!==1?'s':''} added${n<2?' — need at least 2':''}`;
+  document.getElementById('tr-done').disabled=n<2;
+}
+async function submitTrail(){
+  const n=document.getElementById('tr-n').value.trim();
+  if(!n||trailPts.length<2){ showToast('Add a name and at least 2 points'); return; }
+  const b=document.getElementById('tr-done'); b.disabled=true;
+  const c=trailPts[Math.floor(trailPts.length/2)];
+  const{error}=await sb.from('trail_pins').insert({name:n,points:trailPts,lat:c[0],lng:c[1]});
+  b.disabled=false; if(error){ showToast('Error saving trail.'); return; }
+  trailMs.forEach(m=>map.removeLayer(m)); if(trailLine) map.removeLayer(trailLine);
+  trailPts=[]; trailMs=[]; trailLine=null;
+  closeModal('mo-trail'); cancelMode(); showToast('Love Trail saved! ⭐');
+}
+
+/* ── UPLOAD ── */
+async function upImg(file){
+  const ext=file.name.split('.').pop();
+  const path=`${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const{error}=await sb.storage.from('lc-images').upload(path,file,{contentType:file.type});
+  if(error){ console.error(error); return null; }
+  return sb.storage.from('lc-images').getPublicUrl(path).data.publicUrl;
+}
+function handleImgs(input){
+  const files=Array.from(input.files); lcFiles=[...lcFiles,...files];
+  const strip=document.getElementById('ps');
+  files.forEach((f,i)=>{ const r=new FileReader(); r.onload=e=>{ const idx=lcFiles.length-files.length+i; const div=document.createElement('div'); div.className='pt'; div.innerHTML=`<img src="${e.target.result}"/><button onclick="remPrev(${idx},this)">✕</button>`; strip.appendChild(div); }; r.readAsDataURL(f); });
+}
+function remPrev(i,btn){ lcFiles.splice(i,1); btn.parentElement.remove(); }
+function resetLC(){ ['lc-n','lc-loc','lc-d','lc-de'].forEach(id=>document.getElementById(id).value=''); lcFiles=[]; document.getElementById('ps').innerHTML=''; }
+
+/* ── JOURNEY ── */
+let jActive=false;
+function toggleJourney(){
+  jActive=!jActive;
+  ['btn-journey','btn-journey-m'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('active',jActive); });
+  if(!jActive){ if(jLayer){ map.removeLayer(jLayer); jLayer=null; } return; }
+  const d=lcPins.filter(p=>p.date).sort((a,b)=>a.date.localeCompare(b.date));
+  if(d.length<2){ showToast('Need 2+ Love Coordinates with dates'); jActive=false; ['btn-journey','btn-journey-m'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); }); return; }
+  jLayer=L.polyline(d.map(p=>[p.lat,p.lng]),{color:'#b85470',dashArray:'10,7',weight:2.5,opacity:.75}).addTo(map);
+  showToast('Journey Map visible 🗺️');
+}
+
+/* ── GARDEN ── */
+let gActive=false;
+function toggleGarden(){
+  gActive=!gActive;
+  ['btn-garden','btn-garden-m'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('active',gActive); });
+  gLayers.forEach(l=>map.removeLayer(l)); gLayers=[];
+  if(!gActive){ showToast('Memory Garden hidden'); return; }
+  const all=[...lcPins,...swPins,...snPins];
+  if(all.length<7){ showToast('Need at least 7 memories for clusters'); gActive=false; ['btn-garden','btn-garden-m'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); }); return; }
+  const C=0.05, cells={};
+  all.forEach(p=>{ const k=`${Math.floor(p.lat/C)},${Math.floor(p.lng/C)}`; if(!cells[k]) cells[k]={lat:Math.floor(p.lat/C)*C+C/2,lng:Math.floor(p.lng/C)*C+C/2,count:0}; cells[k].count++; });
+  const sh=['#ffb3c6','#ff85a1','#ffc8d5','#ffd6e0','#ffadc0']; let ci=0;
+  Object.values(cells).filter(c=>c.count>=7).forEach(c=>{
+    const circle=L.circle([c.lat,c.lng],{radius:800+c.count*200,color:sh[ci%sh.length],fillColor:sh[ci%sh.length],fillOpacity:.2,weight:1.5,opacity:.45}).addTo(map);
+    circle.on('click',()=>showToast(`${c.count} memories here 🌸`));
+    gLayers.push(circle); ci++;
+  });
+  if(!gLayers.length){ showToast('No clusters with 7+ memories yet'); gActive=false; ['btn-garden','btn-garden-m'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); }); return; }
+  showToast(`${gLayers.length} cluster${gLayers.length>1?'s':''} found 🌿`);
+}
+
+/* ── MEMORY LIST ── */
+function renderList(){
+  const el=document.getElementById('pl'); let items=[];
+  if(curF==='all'||curF==='lc')      items.push(...lcPins.map(p=>({...p,_i:'📍',_l:'Love Coordinate'})));
+  if(curF==='all'||curF==='sweet')   items.push(...swPins.map(p=>({...p,_i:'💗',_l:'Sweet Spot'})));
+  if(curF==='all'||curF==='snuggle') items.push(...snPins.map(p=>({...p,_i:'🧸',_l:'Snuggle Spot'})));
+  if(curF==='all'||curF==='trail')   items.push(...trPins.map(p=>({...p,_i:'⭐',_l:'Love Trail'})));
+  if(!items.length){ el.innerHTML=`<div style="text-align:center;padding:28px 16px;color:var(--muted);font-size:.84rem;line-height:1.6;">No memories here yet 🌸<br/>Start adding pins to the map!</div>`; return; }
+  el.innerHTML=items.map(p=>`<div class="pi" onclick="flyTo('${p.id}')"><div class="pii">${p._i}</div><div><div class="pit">${esc(p.name)}</div><div class="pis">${p._l}</div></div></div>`).join('');
+}
+function flyTo(id){ const r=refs[id]; if(!r) return; map.flyTo(r.marker.getLatLng(),15,{animate:true,duration:1}); if(window.innerWidth<=640) closeSB(); }
+
+document.querySelectorAll('.fc').forEach(c=>{
+  c.addEventListener('click',()=>{ document.querySelectorAll('.fc').forEach(x=>x.classList.remove('active')); c.classList.add('active'); curF=c.dataset.f; renderList(); });
+});
+
+function toggleSB(){
+  sbOpen=!sbOpen;
+  const el=document.getElementById('sidebar'), bd=document.getElementById('sbd');
+  if(window.innerWidth<=640){ el.classList.toggle('open',sbOpen); bd.classList.toggle('show',sbOpen); el.classList.remove('hidden'); }
+  else { el.classList.toggle('hidden',!sbOpen); }
+  ['btn-pindom','btn-pindom-m'].forEach(id=>{ const b=document.getElementById(id); if(b) b.classList.toggle('active',sbOpen); });
+}
+function closeSB(){
+  sbOpen=false;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sbd').classList.remove('show');
+  document.getElementById('sidebar').classList.add('hidden');
+  ['btn-pindom','btn-pindom-m'].forEach(id=>{ const b=document.getElementById(id); if(b) b.classList.remove('active'); });
+}
+document.getElementById('sbd').onclick=closeSB;
+
+/* ── PINBOARD ── */
+function renderPB(){
+  const g=document.getElementById('pbg');
+  const imgs=[]; lcPins.forEach(p=>(p.images||[]).forEach(u=>imgs.push({u,n:p.name,lat:p.lat,lng:p.lng})));
+  if(!imgs.length){ g.innerHTML=`<div style="text-align:center;padding:48px;color:var(--muted);font-size:.85rem;line-height:1.7;">No photos yet 🌸<br/>Add images to Love Coordinates to see them here.</div>`; return; }
+  g.innerHTML=imgs.map(i=>`<div class="pbc"><img src="${esc(i.u)}" loading="lazy" alt="${esc(i.n)}" onerror="this.parentElement.style.display='none'"/><div class="pbcl">${esc(i.n)}</div><button class="pbcg" onclick="pbFly(${i.lat},${i.lng})">📍</button></div>`).join('');
+}
+function pbFly(lat,lng){ closePB(); map.flyTo([lat,lng],15,{animate:true,duration:1}); }
+function openPB(){ renderPB(); document.getElementById('pb').classList.add('open'); }
+function closePB(){ document.getElementById('pb').classList.remove('open'); }
+
+/* ── MODE ── */
+const mBtns={lc:['btn-lc','btn-lc-m'],sweet:['btn-sweet','btn-sweet-m'],snuggle:['btn-snuggle','btn-snuggle-m'],trail:['btn-trail','btn-trail-m']};
+const mHints={lc:'📍 Tap anywhere to place a Love Coordinate',sweet:'💗 Tap anywhere to place a Sweet Spot',snuggle:'🧸 Tap anywhere to place a Snuggle Spot',trail:'⭐ Tap multiple points to draw your trail'};
+const mCls={lc:'ml',sweet:'ms',snuggle:'mn',trail:'mt'};
+
+function setMode(m){
+  if(mode===m){ cancelMode(); return; }
+  cancelMode(); mode=m;
+  document.getElementById('map').classList.add(mCls[m]);
+  mBtns[m].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add('active'); });
+  const b=document.getElementById('mb'); b.textContent=mHints[m]; b.classList.add('show');
+  if(m==='trail') openM('mo-trail');
+}
+function cancelMode(){
+  mode=null;
+  Object.values(mCls).forEach(c=>document.getElementById('map').classList.remove(c));
+  Object.values(mBtns).flat().forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  document.getElementById('mb').classList.remove('show');
+  trailMs.forEach(m=>map.removeLayer(m)); if(trailLine) map.removeLayer(trailLine);
+  trailPts=[]; trailMs=[]; trailLine=null;
+  document.getElementById('tc').textContent='0 points added — need at least 2';
+  document.getElementById('tr-done').disabled=true;
+}
+
+function openM(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); cancelMode(); }
+document.querySelectorAll('.mo').forEach(el=>el.addEventListener('click',e=>{ if(e.target===el) closeModal(el.id); }));
+document.getElementById('dp').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeDetail(); });
+
+/* ── UTILS ── */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtD(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : ''; }
+let tT;
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),3200); }
+
+/* ── WIRE BUTTONS ── */
+document.getElementById('btn-lc').onclick       = ()=>setMode('lc');
+document.getElementById('btn-sweet').onclick    = ()=>setMode('sweet');
+document.getElementById('btn-snuggle').onclick  = ()=>setMode('snuggle');
+document.getElementById('btn-trail').onclick    = ()=>setMode('trail');
+document.getElementById('btn-journey').onclick  = toggleJourney;
+document.getElementById('btn-garden').onclick   = toggleGarden;
+document.getElementById('btn-pindom').onclick   = toggleSB;
+document.getElementById('btn-pinboard').onclick = openPB;
+document.getElementById('btn-lc-m').onclick       = ()=>setMode('lc');
+document.getElementById('btn-sweet-m').onclick    = ()=>setMode('sweet');
+document.getElementById('btn-snuggle-m').onclick  = ()=>setMode('snuggle');
+document.getElementById('btn-trail-m').onclick    = ()=>setMode('trail');
+document.getElementById('btn-journey-m').onclick  = toggleJourney;
+document.getElementById('btn-garden-m').onclick   = toggleGarden;
+document.getElementById('btn-pindom-m').onclick   = toggleSB;
+document.getElementById('btn-pinboard-m').onclick = openPB;
+
+/* ── BOOT ── */
+function dismissLoader(){
+  const ld=document.getElementById('loading');
+  if(ld){ ld.classList.add('out'); setTimeout(()=>ld.style.display='none', 480); }
+}
+
+async function boot(){
+  // Always dismiss loader, even if something crashes
+  try {
+    if(typeof L === 'undefined') throw new Error('Leaflet did not load');
+    initMap();
+  } catch(e){
+    console.error('Map init failed:', e);
+    dismissLoader();
+    showToast('Map failed to load — check your connection');
+    return;
+  }
+
+  wireSearch('dsk');
+  wireSearch('mob');
+
+  if(!sb){
+    console.warn('Supabase unavailable — running in offline mode');
+    showToast('⚠️ Could not connect to database');
+  } else {
+    try { await loadAll(); } catch(e){ console.error('loadAll failed:', e); showToast('Error loading pins'); }
+    try { subRT(); } catch(e){ console.warn('Realtime unavailable:', e); }
+  }
+
+  dismissLoader();
+}
+
+// Safety net: if boot() itself throws synchronously, still hide the loader
+try { boot(); } catch(e){ console.error('Boot crashed:', e); dismissLoader(); }
+</script>
+</body>
+</html>

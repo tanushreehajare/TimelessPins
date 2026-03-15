@@ -559,7 +559,8 @@ input[type="date"].fi::-webkit-calendar-picker-indicator{opacity:.6;cursor:point
 <!-- Floating trail status bar — Phase 2: map is fully interactive, no overlay -->
 <div id="trail-bar">
   <div id="trail-bar-dot"></div>
-  <span id="trail-bar-txt">Tap map — set START point</span>
+  <span id="trail-bar-txt">Tap map to add points</span>
+  <button id="trail-undo-btn" onclick="undoTrailPoint()" style="padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-family:var(--fb);font-size:.78rem;cursor:pointer;" disabled>↩ Undo</button>
   <button id="trail-done-btn" disabled onclick="finishTrailDrawing()">Save Trail ⭐</button>
   <button id="trail-cancel-btn" onclick="cancelTrailFull()">✕</button>
 </div>
@@ -616,8 +617,7 @@ function onMapClick(e){
   if(mode==='lc'){pendingLL=e.latlng;document.getElementById('lc-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-lc');}
   else if(mode==='sweet'){pendingLL=e.latlng;document.getElementById('sw-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-sweet');}
   else if(mode==='snuggle'){pendingLL=e.latlng;document.getElementById('sn-cl').textContent='📍 '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);openM('mo-snuggle');}
-  else if(mode==='trail-start'){setTrailStart(e.latlng);}
-  else if(mode==='trail-end'){setTrailEnd(e.latlng);}
+  else if(mode==='trail-draw'){addTrailPoint(e.latlng);}
 }
 
 /* ── SEARCH ─────────────────────────────────────── */
@@ -670,8 +670,10 @@ function hideDrop(){_drop.classList.remove('show');_drop.innerHTML='';}
 /* ── TRAIL STATE ─────────────────────────────────── */
 const TRAIL_COLORS=['#b85470','#e07b9e','#f4a7c0','#d4506e','#ff85a1','#c94f7c','#f7cad6','#e8366a'];
 let trColor=TRAIL_COLORS[0];
-let trStart=null, trEnd=null;
-let trStartMarker=null, trEndMarker=null, trPreviewLine=null;
+// Freehand multi-point drawing
+let trPoints=[];       // array of [lat,lng]
+let trDotMarkers=[];   // circle dot for each tapped point
+let trDrawLine=null;   // live polyline while drawing
 let trailsVisible=false;
 const trRefs={};
 
@@ -687,10 +689,8 @@ function buildColorSwatches(){
       trColor=c;
       row.querySelectorAll('.color-swatch').forEach(x=>x.classList.remove('selected'));
       s.classList.add('selected');
-      // Update preview line color if already drawn
-      if(trPreviewLine) trPreviewLine.setStyle({color:c});
-      if(trStartMarker) trStartMarker.setStyle({color:c,fillColor:c});
-      if(trEndMarker) trEndMarker.setStyle({color:c,fillColor:c});
+      if(trDrawLine) trDrawLine.setStyle({color:c});
+      trDotMarkers.forEach(m=>m.setStyle({color:c,fillColor:c}));
     };
     row.appendChild(s);
   });
@@ -710,13 +710,13 @@ function openTrailDrawer(){
 function startDrawingTrail(){
   const n=document.getElementById('tr-n').value.trim();
   if(!n){showToast('Please enter a trail name first');return;}
-  // Close drawer, show floating bar, enter drawing mode
   document.getElementById('trail-drawer').classList.remove('open');
   document.getElementById('trail-bar').classList.add('show');
   document.getElementById('trail-bar-dot').classList.remove('done');
-  document.getElementById('trail-bar-txt').textContent='Tap map — set START point';
+  document.getElementById('trail-bar-txt').textContent='Tap map to add points (2+ needed)';
   document.getElementById('trail-done-btn').disabled=true;
-  setMode('trail-start');
+  document.getElementById('trail-undo-btn').disabled=true;
+  setMode('trail-draw');
 }
 
 function cancelTrailFull(){
@@ -727,63 +727,75 @@ function cancelTrailFull(){
   document.getElementById('btn-trail').classList.remove('active');
 }
 
-/* ── TRAIL POINT PICKING ─────────────────────────── */
-function setTrailStart(ll){
-  trStart=ll;
-  if(trStartMarker)map.removeLayer(trStartMarker);
-  trStartMarker=L.circleMarker([ll.lat,ll.lng],{radius:9,color:trColor,fillColor:trColor,fillOpacity:.9,weight:3}).addTo(map);
-  trStartMarker.bindTooltip('Start ⭐',{permanent:true,direction:'top',offset:[0,-12]});
-  mode='trail-end';
-  map.getContainer().classList.remove('mt-start');
-  map.getContainer().classList.add('mt-end');
-  document.getElementById('trail-bar-txt').textContent='Tap map — set END point';
-  updateTrailPreview();
-}
-
-function setTrailEnd(ll){
-  trEnd=ll;
-  if(trEndMarker)map.removeLayer(trEndMarker);
-  trEndMarker=L.circleMarker([ll.lat,ll.lng],{radius:9,color:trColor,fillColor:trColor,fillOpacity:.9,weight:3}).addTo(map);
-  trEndMarker.bindTooltip('End 🏁',{permanent:true,direction:'top',offset:[0,-12]});
-  mode=null;
-  map.getContainer().classList.remove('mt-end');
-  document.getElementById('trail-bar-dot').classList.add('done');
-  document.getElementById('trail-bar-txt').textContent='Trail drawn! ✓ Tap Save to keep it';
-  document.getElementById('trail-done-btn').disabled=false;
-  updateTrailPreview();
-}
-
-function updateTrailPreview(){
-  if(trPreviewLine){map.removeLayer(trPreviewLine);trPreviewLine=null;}
-  if(trStart&&trEnd){
-    // Start with straight line immediately, then replace with route
-    trPreviewLine=L.polyline([[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],{color:trColor,weight:4,dashArray:'10,6',opacity:.8}).addTo(map);
-    fetchRoute([trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]).then(coords=>{
-      if(trPreviewLine&&coords.length>2){trPreviewLine.setLatLngs(coords);}
-    });
+/* ── FREEHAND TRAIL POINT ADDING ─────────────────── */
+function addTrailPoint(ll){
+  trPoints.push([ll.lat,ll.lng]);
+  // Draw a small dot at this point
+  const dot=L.circleMarker([ll.lat,ll.lng],{
+    radius: trPoints.length===1 ? 8 : 5,
+    color:trColor, fillColor:trColor, fillOpacity:.9, weight:2.5
+  }).addTo(map);
+  // First point gets a star tooltip, last gets updated to show count
+  if(trPoints.length===1){
+    dot.bindTooltip('Start ⭐',{permanent:true,direction:'top',offset:[0,-10]});
   }
+  trDotMarkers.push(dot);
+
+  // Redraw the polyline through all points
+  if(trDrawLine) map.removeLayer(trDrawLine);
+  if(trPoints.length>1){
+    trDrawLine=L.polyline(trPoints,{color:trColor,weight:4,opacity:.85}).addTo(map);
+  }
+
+  // Update bar
+  const n=trPoints.length;
+  document.getElementById('trail-bar-dot').classList.toggle('done',n>=2);
+  document.getElementById('trail-bar-txt').textContent=
+    n===1 ? '1 point — keep tapping to trace your path'
+    : `${n} points ✓ — keep adding or tap Save`;
+  document.getElementById('trail-done-btn').disabled=n<2;
+  document.getElementById('trail-undo-btn').disabled=false;
+}
+
+function undoTrailPoint(){
+  if(!trPoints.length)return;
+  trPoints.pop();
+  const dot=trDotMarkers.pop();
+  if(dot)map.removeLayer(dot);
+  if(trDrawLine){map.removeLayer(trDrawLine);trDrawLine=null;}
+  if(trPoints.length>1){
+    trDrawLine=L.polyline(trPoints,{color:trColor,weight:4,opacity:.85}).addTo(map);
+  }
+  const n=trPoints.length;
+  document.getElementById('trail-bar-dot').classList.toggle('done',n>=2);
+  document.getElementById('trail-bar-txt').textContent=
+    n===0 ? 'Tap map to add points (2+ needed)'
+    : n===1 ? '1 point — keep tapping to trace your path'
+    : `${n} points ✓ — keep adding or tap Save`;
+  document.getElementById('trail-done-btn').disabled=n<2;
+  document.getElementById('trail-undo-btn').disabled=n===0;
 }
 
 function clearTrailPicking(){
-  if(trStartMarker){map.removeLayer(trStartMarker);trStartMarker=null;}
-  if(trEndMarker){map.removeLayer(trEndMarker);trEndMarker=null;}
-  if(trPreviewLine){map.removeLayer(trPreviewLine);trPreviewLine=null;}
-  trStart=null;trEnd=null;
+  trPoints=[];
+  trDotMarkers.forEach(m=>map.removeLayer(m));
+  trDotMarkers=[];
+  if(trDrawLine){map.removeLayer(trDrawLine);trDrawLine=null;}
 }
 
 async function finishTrailDrawing(){
   const n=document.getElementById('tr-n').value.trim();
-  if(!n||!trStart||!trEnd){showToast('Missing trail name or points');return;}
+  if(!n||trPoints.length<2){showToast('Need a name and at least 2 points');return;}
   const btn=document.getElementById('trail-done-btn');
   btn.disabled=true;btn.textContent='Saving…';
   try{
     const{error}=await sb.from('trail_pins').insert({
       name:n,
       description:document.getElementById('tr-de').value.trim()||null,
-      start_lat:trStart.lat,start_lng:trStart.lng,
-      end_lat:trEnd.lat,end_lng:trEnd.lng,
-      points:[[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],
-      lat:trStart.lat,lng:trStart.lng,
+      start_lat:trPoints[0][0], start_lng:trPoints[0][1],
+      end_lat:trPoints[trPoints.length-1][0], end_lng:trPoints[trPoints.length-1][1],
+      points:trPoints,
+      lat:trPoints[0][0], lng:trPoints[0][1],
       color:trColor,
     });
     if(error)throw error;
@@ -809,47 +821,25 @@ function trailStarIcon(color){
   });
 }
 
-async function fetchRoute(start,end){
-  // OSRM public API — foot-walking profile, no API key needed
-  try{
-    const url=`https://router.project-osrm.org/route/v1/foot/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
-    const r=await fetch(url);
-    const data=await r.json();
-    if(data.code==='Ok'&&data.routes&&data.routes[0]){
-      // GeoJSON coords are [lng,lat] — flip to [lat,lng] for Leaflet
-      return data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
-    }
-  }catch(e){}
-  // Fallback: straight line
-  return [start,end];
-}
-
 function addTR(t){
-  if(!t.start_lat||!t.start_lng||!t.end_lat||!t.end_lng)return;
-  const start=[t.start_lat,t.start_lng];
-  const end=[t.end_lat,t.end_lng];
+  if(!t.start_lat||!t.start_lng)return;
+  const pts=Array.isArray(t.points)&&t.points.length>=2
+    ? t.points
+    : [[t.start_lat,t.start_lng],[t.end_lat||t.start_lat,t.end_lng||t.start_lng]];
   const color=t.color||'#b85470';
 
-  // Star marker — HIDDEN by default, shown only when Sparkles is active
-  const m=L.marker(start,{icon:trailStarIcon(color),opacity:0}).addTo(map);
-
-  // Line also hidden by default
-  const ln=L.polyline([start,end],{color,weight:4,opacity:0}).addTo(map);
+  // Star marker at start — HIDDEN until Sparkles on
+  const m=L.marker([t.start_lat,t.start_lng],{icon:trailStarIcon(color),opacity:0}).addTo(map);
+  // Full custom-path polyline — hidden until star clicked
+  const ln=L.polyline(pts,{color,weight:4,opacity:0}).addTo(map);
   let lineVisible=false;
 
-  // Fetch real route and replace the straight line
-  fetchRoute(start,end).then(coords=>{
-    if(coords.length>2) ln.setLatLngs(coords);
-  });
-
   m.on('click',()=>{
-    // Only respond if marker is visible (Sparkles mode on)
     if(m.options.opacity===0)return;
     lineVisible=!lineVisible;
-    ln.setStyle({opacity:lineVisible?.85:0});
+    ln.setStyle({opacity:lineVisible?.9:0});
     if(lineVisible)map.fitBounds(ln.getBounds(),{padding:[50,50]});
   });
-
   m.bindTooltip(`<b>⭐ ${esc(t.name)}</b>${t.description?`<br><span style="font-size:.75rem;color:#888">${esc(t.description)}</span>`:''}`,{direction:'top',offset:[0,-10]});
   trRefs[t.id]={marker:m,line:ln,lineVisible:false};
   refs[t.id]={marker:m,type:'trail'};
@@ -860,15 +850,10 @@ function toggleAllTrails(){
   trailsVisible=!trailsVisible;
   document.getElementById('btn-trails-show').classList.toggle('active',trailsVisible);
   Object.values(trRefs).forEach(r=>{
-    // Show/hide the star marker
     r.marker.setOpacity(trailsVisible?1:0);
-    // If hiding Sparkles, also hide any open trail lines
-    if(!trailsVisible){
-      r.line.setStyle({opacity:0});
-      r.lineVisible=false;
-    }
+    if(!trailsVisible){r.line.setStyle({opacity:0});r.lineVisible=false;}
   });
-  showToast(trailsVisible?'Trails visible ✨ — tap a ⭐ to show path':'Trails hidden');
+  showToast(trailsVisible?'Trails visible ✨ — tap ⭐ to show path':'Trails hidden');
 }
 
 /* ── LABELS ──────────────────────────────────────── */
@@ -1096,6 +1081,7 @@ const mHints={
   snuggle:'🧸 Tap the map to place a Snuggle Spot',
   'trail-start':'⭐ Tap the map to set the trail START point',
   'trail-end':'⭐ Tap the map to set the trail END point',
+  'trail-draw':'⭐ Tap to add points — trace your own path freely',
 };
 
 function setMode(m){
@@ -1105,8 +1091,7 @@ function setMode(m){
   if(m==='lc')mapEl.classList.add('ml');
   else if(m==='sweet')mapEl.classList.add('ms');
   else if(m==='snuggle')mapEl.classList.add('mn');
-  else if(m==='trail-start')mapEl.classList.add('mt-start');
-  // Highlight active button
+  else if(m==='trail-start'||m==='trail-draw')mapEl.classList.add('mt-start');
   const btnId=mBtns[m]||mBtns['lc'];
   if(mBtns[m])document.getElementById(mBtns[m]).classList.add('active');
   const b=document.getElementById('mb');

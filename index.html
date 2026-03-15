@@ -25,7 +25,8 @@
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--blush);}
-body{font-family:var(--fb);color:var(--ink);display:flex;flex-direction:column;}
+body{font-family:var(--fb);color:var(--ink);display:flex;flex-direction:column;
+     padding-top:calc(var(--topbar-h) + var(--toolbar-h));}
 button{font-family:var(--fb);cursor:pointer;}
 
 /* ═══ TOP BAR — title only ═══ */
@@ -36,7 +37,7 @@ button{font-family:var(--fb);cursor:pointer;}
   height:var(--topbar-h);
   z-index:1000;flex-shrink:0;
   box-shadow:0 1px 10px rgba(180,80,110,.07);
-  position:sticky;top:0; /* stays fixed even when body content shifts */
+  position:fixed;top:0;left:0;right:0; /* truly fixed — unaffected by map drag */
 }
 .logo{
   font-family:var(--fh);font-size:1.35rem;font-style:italic;
@@ -54,7 +55,7 @@ button{font-family:var(--fb);cursor:pointer;}
   box-shadow:0 2px 12px rgba(180,80,110,.06);
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
-  position:sticky;top:var(--topbar-h); /* sticks below topbar */
+  position:fixed;top:var(--topbar-h);left:0;right:0; /* fixed below topbar */
 }
 #toolbar::-webkit-scrollbar{display:none;}
 #toolbar{scrollbar-width:none;}
@@ -546,6 +547,7 @@ button{font-family:var(--fb);cursor:pointer;}
     <div class="mbt">💗 Sweet Spot</div>
     <div class="mbs" id="sw-cl"></div>
     <div class="fl"><label>Title *</label><input class="fi" id="sw-n" placeholder="Our sweet little corner…" maxlength="60"/></div>
+    <div class="fl"><label>Description (optional)</label><textarea class="ft" id="sw-de" placeholder="What makes this place special…"></textarea></div>
     <div class="ma">
       <button class="bs" onclick="cancelMode()">Cancel</button>
       <button class="bp" onclick="submitSweet()">Pin It 💗</button>
@@ -811,7 +813,10 @@ function openLCD(p){
   openDetail();
 }
 function openSWD(p){
-  document.getElementById('dc').innerHTML=`<div class="badge">💗 Sweet Spot</div><div class="stit">${esc(p.name)}</div><div class="sloc" style="margin-top:8px;">A meaningful little place 💕</div>`;
+  document.getElementById('dc').innerHTML=`
+    <div class="badge">💗 Sweet Spot</div>
+    <div class="stit">${esc(p.name)}</div>
+    ${p.description?`<div class="sdesc" style="margin-top:10px;">${esc(p.description)}</div>`:`<div class="sloc" style="margin-top:8px;">A meaningful little place 💕</div>`}`;
   openDetail();
 }
 function openSND(p){
@@ -876,8 +881,11 @@ async function submitSweet(){
   const n=document.getElementById('sw-n').value.trim();
   if(!n||!pendingLL){showToast('Please enter a title');return;}
   const b=document.querySelector('#mo-sweet .bp');b.disabled=true;
-  const{error}=await sb.from('sweet_pins').insert({name:n,lat:pendingLL.lat,lng:pendingLL.lng});
+  const de=document.getElementById('sw-de').value.trim()||null;
+  const{error}=await sb.from('sweet_pins').insert({name:n,lat:pendingLL.lat,lng:pendingLL.lng,description:de});
   b.disabled=false;if(error){showToast('Error saving.');return;}
+  document.getElementById('sw-n').value='';
+  document.getElementById('sw-de').value='';
   closeModal('mo-sweet');cancelMode();showToast('Sweet Spot added! 💗');
 }
 async function submitSnuggle(){

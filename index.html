@@ -177,7 +177,8 @@ button{font-family:var(--fb);cursor:pointer;}
 /* ═══ MARKERS ═══ */
 .lc-m{display:flex;flex-direction:column;align-items:center;cursor:pointer;}
 .lc-d{width:30px;height:30px;background:var(--rose-deep);border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;box-shadow:0 3px 12px rgba(184,84,112,.4);display:flex;align-items:center;justify-content:center;}
-.lc-di{transform:rotate(45deg);font-size:.85rem;}
+/* White dot inside pin — classic map pin look */
+.lc-di{width:10px;height:10px;border-radius:50%;background:white;display:block;}
 .lc-l{margin-top:3px;background:white;padding:2px 7px;border-radius:10px;font-size:.65rem;font-weight:700;color:var(--rose-deep);white-space:nowrap;box-shadow:var(--sx);border:1px solid var(--border);display:none;}
 .sw-m{font-size:1.5rem;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(200,80,110,.35));animation:hb 2s ease-in-out infinite;}
 .sn-m{font-size:1.5rem;cursor:pointer;filter:drop-shadow(0 2px 4px rgba(160,110,70,.3));animation:wb 3s ease-in-out infinite;}
@@ -600,7 +601,12 @@ let lcFiles=[], snFiles=[];
 
 /* ── MAP INIT ──────────────────────────────────── */
 function initMap(){
-  map=L.map('map',{zoomControl:false,minZoom:2,maxZoom:19,worldCopyJump:true,tap:true,tapTolerance:15});
+  map=L.map('map',{
+    zoomControl:false,minZoom:2,maxZoom:19,worldCopyJump:true,tap:true,tapTolerance:15,
+    // Clamp to world bounds — prevents scrolling into blank space above/below
+    maxBounds:[[-85,-180],[85,180]],
+    maxBoundsViscosity:1.0,
+  });
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom:19,minZoom:2,detectRetina:false,
@@ -870,7 +876,7 @@ function fitMap(){
 }
 
 /* ── MARKERS ─────────────────────────────────────── */
-function lcIcon(n){return L.divIcon({className:'',html:`<div class="lc-m"><div class="lc-d"><span class="lc-di">💕</span></div><div class="lc-l">${esc(n)}</div></div>`,iconSize:[34,52],iconAnchor:[17,52],popupAnchor:[0,-56]});}
+function lcIcon(n){return L.divIcon({className:'',html:`<div class="lc-m"><div class="lc-d"><span class="lc-di"></span></div><div class="lc-l">${esc(n)}</div></div>`,iconSize:[34,52],iconAnchor:[17,52],popupAnchor:[0,-56]});}
 const swIcon=L.divIcon({className:'',html:`<div class="sw-m">💗</div>`,iconSize:[30,30],iconAnchor:[15,15]});
 const snIcon=L.divIcon({className:'',html:`<div class="sn-m">🧸</div>`,iconSize:[30,30],iconAnchor:[15,15]});
 function addLC(p){const m=L.marker([p.lat,p.lng],{icon:lcIcon(p.name)}).addTo(map);m.on('click',()=>openLCD(p));refs[p.id]={marker:m,type:'lc'};updLabels();}
@@ -1013,18 +1019,38 @@ function toggleGarden(){
   gActive=!gActive;document.getElementById('btn-garden').classList.toggle('active',gActive);
   gLayers.forEach(l=>map.removeLayer(l));gLayers=[];
   if(!gActive){showToast('Memory Garden hidden');return;}
-  const all=[...lcPins,...swPins,...snPins];
-  if(all.length<7){showToast('Need at least 7 memories for clusters');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
-  const C=0.05,cells={};
-  all.forEach(p=>{const k=`${Math.floor(p.lat/C)},${Math.floor(p.lng/C)}`;if(!cells[k])cells[k]={lat:Math.floor(p.lat/C)*C+C/2,lng:Math.floor(p.lng/C)*C+C/2,count:0};cells[k].count++;});
-  const sh=['#ffb3c6','#ff85a1','#ffc8d5','#ffd6e0','#ffadc0'];let ci=0;
-  Object.values(cells).filter(c=>c.count>=7).forEach(c=>{
-    const circle=L.circle([c.lat,c.lng],{radius:800+c.count*200,color:sh[ci%sh.length],fillColor:sh[ci%sh.length],fillOpacity:.2,weight:1.5,opacity:.45}).addTo(map);
-    circle.on('click',()=>showToast(`${c.count} memories in this cluster 🌸`));
+  // Only Love Coordinates count for garden clusters
+  if(lcPins.length<2){showToast('Need at least 2 Love Coordinates for clusters');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
+  // Group nearby pins using a grid cell size (in degrees)
+  const C=0.02; // tighter cell = smaller circles
+  const cells={};
+  lcPins.forEach(p=>{
+    const k=`${Math.floor(p.lat/C)},${Math.floor(p.lng/C)}`;
+    if(!cells[k]) cells[k]={pins:[]};
+    cells[k].pins.push(p);
+  });
+  const sh=['#ffb3c6','#ff85a1','#ffc8d5','#ffd6e0','#f7a8be'];let ci=0;
+  Object.values(cells).filter(c=>c.pins.length>=2).forEach(c=>{
+    // Compute the actual bounding box of pins in this cell
+    const lats=c.pins.map(p=>p.lat),lngs=c.pins.map(p=>p.lng);
+    const centerLat=(Math.min(...lats)+Math.max(...lats))/2;
+    const centerLng=(Math.min(...lngs)+Math.max(...lngs))/2;
+    // Radius = half the diagonal of the bounding box + small padding
+    // 1 degree lat ≈ 111km, 1 degree lng ≈ 111km*cos(lat)
+    const dLat=(Math.max(...lats)-Math.min(...lats))*111000/2;
+    const dLng=(Math.max(...lngs)-Math.min(...lngs))*111000*Math.cos(centerLat*Math.PI/180)/2;
+    const radius=Math.sqrt(dLat*dLat+dLng*dLng)+180; // +180m padding
+    const finalRadius=Math.max(radius,80); // min 80m so single pins still show
+    const circle=L.circle([centerLat,centerLng],{
+      radius:finalRadius,
+      color:sh[ci%sh.length],fillColor:sh[ci%sh.length],
+      fillOpacity:.22,weight:1.5,opacity:.5
+    }).addTo(map);
+    circle.on('click',()=>showToast(`${c.pins.length} love memor${c.pins.length>1?'ies':'y'} here 🌸`));
     gLayers.push(circle);ci++;
   });
-  if(!gLayers.length){showToast('No clusters with 7+ memories yet');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
-  showToast(`${gLayers.length} memory cluster${gLayers.length>1?'s':''} found 🌿`);
+  if(!gLayers.length){showToast('No nearby Love Coordinates to cluster yet');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
+  showToast(`${gLayers.length} memory cluster${gLayers.length>1?'s':''} blooming 🌸`);
 }
 
 /* ── MEMORY LIST ─────────────────────────────────── */

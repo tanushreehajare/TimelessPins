@@ -756,7 +756,11 @@ function setTrailEnd(ll){
 function updateTrailPreview(){
   if(trPreviewLine){map.removeLayer(trPreviewLine);trPreviewLine=null;}
   if(trStart&&trEnd){
+    // Start with straight line immediately, then replace with route
     trPreviewLine=L.polyline([[trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]],{color:trColor,weight:4,dashArray:'10,6',opacity:.8}).addTo(map);
+    fetchRoute([trStart.lat,trStart.lng],[trEnd.lat,trEnd.lng]).then(coords=>{
+      if(trPreviewLine&&coords.length>2){trPreviewLine.setLatLngs(coords);}
+    });
   }
 }
 
@@ -805,34 +809,66 @@ function trailStarIcon(color){
   });
 }
 
+async function fetchRoute(start,end){
+  // OSRM public API — foot-walking profile, no API key needed
+  try{
+    const url=`https://router.project-osrm.org/route/v1/foot/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+    const r=await fetch(url);
+    const data=await r.json();
+    if(data.code==='Ok'&&data.routes&&data.routes[0]){
+      // GeoJSON coords are [lng,lat] — flip to [lat,lng] for Leaflet
+      return data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+    }
+  }catch(e){}
+  // Fallback: straight line
+  return [start,end];
+}
+
 function addTR(t){
   if(!t.start_lat||!t.start_lng||!t.end_lat||!t.end_lng)return;
   const start=[t.start_lat,t.start_lng];
   const end=[t.end_lat,t.end_lng];
   const color=t.color||'#b85470';
-  const m=L.marker(start,{icon:trailStarIcon(color)}).addTo(map);
+
+  // Star marker — HIDDEN by default, shown only when Sparkles is active
+  const m=L.marker(start,{icon:trailStarIcon(color),opacity:0}).addTo(map);
+
+  // Line also hidden by default
   const ln=L.polyline([start,end],{color,weight:4,opacity:0}).addTo(map);
-  let visible=false;
-  m.on('click',()=>{
-    visible=!visible;
-    ln.setStyle({opacity:visible?.85:0});
-    if(visible)map.fitBounds(ln.getBounds(),{padding:[50,50]});
+  let lineVisible=false;
+
+  // Fetch real route and replace the straight line
+  fetchRoute(start,end).then(coords=>{
+    if(coords.length>2) ln.setLatLngs(coords);
   });
-  // Show name on hover
+
+  m.on('click',()=>{
+    // Only respond if marker is visible (Sparkles mode on)
+    if(m.options.opacity===0)return;
+    lineVisible=!lineVisible;
+    ln.setStyle({opacity:lineVisible?.85:0});
+    if(lineVisible)map.fitBounds(ln.getBounds(),{padding:[50,50]});
+  });
+
   m.bindTooltip(`<b>⭐ ${esc(t.name)}</b>${t.description?`<br><span style="font-size:.75rem;color:#888">${esc(t.description)}</span>`:''}`,{direction:'top',offset:[0,-10]});
-  trRefs[t.id]={marker:m,line:ln,visible:false};
+  trRefs[t.id]={marker:m,line:ln,lineVisible:false};
   refs[t.id]={marker:m,type:'trail'};
 }
 
-/* Toggle all trails */
+/* Toggle all trail stars + lines (Sparkles button) */
 function toggleAllTrails(){
   trailsVisible=!trailsVisible;
   document.getElementById('btn-trails-show').classList.toggle('active',trailsVisible);
   Object.values(trRefs).forEach(r=>{
-    r.line.setStyle({opacity:trailsVisible?.85:0});
-    r.visible=trailsVisible;
+    // Show/hide the star marker
+    r.marker.setOpacity(trailsVisible?1:0);
+    // If hiding Sparkles, also hide any open trail lines
+    if(!trailsVisible){
+      r.line.setStyle({opacity:0});
+      r.lineVisible=false;
+    }
   });
-  showToast(trailsVisible?'All trails visible ✨':'Trails hidden');
+  showToast(trailsVisible?'Trails visible ✨ — tap a ⭐ to show path':'Trails hidden');
 }
 
 /* ── LABELS ──────────────────────────────────────── */

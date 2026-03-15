@@ -97,13 +97,10 @@ button{font-family:var(--fb);cursor:pointer;}
 #map.mn{cursor:crosshair!important;}
 #map.mt{cursor:cell!important;}
 
-/* Soft, warm map appearance — not over-sharpened */
-.leaflet-tile{
-  filter:saturate(0.82) brightness(1.03) hue-rotate(2deg);
-}
+/* No CSS filter on tiles — filters cause blank tiles on iOS Safari when zooming */
 .leaflet-container{
   width:100%!important;height:100%!important;
-  background:#e8ddd4;
+  background:#f0e8df; /* fallback warm tone while tiles load */
 }
 
 /* ═══ SEARCH BAR ═══ */
@@ -356,23 +353,29 @@ button{font-family:var(--fb);cursor:pointer;}
   .tp .tp-label{display:none;}
   .tp{padding:5px 9px;gap:0;}
 
-  /* Sidebar slides in BELOW both toolbars — never covers search bar */
+  /* Sidebar: full-height overlay BELOW both toolbars
+     z-index 200 — sits above map (z:1) but BELOW search-wrap (z:1500) */
   #sidebar{
     position:fixed;
     top:calc(var(--topbar-h) + var(--toolbar-h));
     bottom:0;left:0;
-    z-index:500;
+    z-index:200;
     transform:translateX(-100%);
-    width:min(280px,85vw);
+    width:min(280px,80vw);
     border-radius:0 16px 0 0;
+    box-shadow:4px 0 24px rgba(180,80,110,.18);
   }
   #sidebar.open{transform:translateX(0);}
   #sidebar.hidden{transform:translateX(-100%);}
 
-  /* Search bar position */
+  /* Backdrop also below search bar */
+  #sbd{z-index:199;}
+
+  /* Search bar: always floats above everything including open sidebar */
   #search-wrap{
     top:calc(var(--topbar-h) + var(--toolbar-h) + 8px);
     width:calc(100vw - 20px);
+    z-index:1500; /* already set globally but reaffirm */
   }
 
   #mb{bottom:20px;font-size:.76rem;padding:8px 16px;}
@@ -595,7 +598,9 @@ function initMap(){
     attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom: 19,
     minZoom: 2,
-    detectRetina: true,  // @2x tiles on retina/high-DPI mobile → sharp rendering
+    // detectRetina disabled — OSM doesn't serve reliable @2x tiles,
+    // enabling it causes blank tiles on iOS Safari when zooming in
+    detectRetina: false,
   }).addTo(map);
 
   L.control.zoom({position:'bottomright'}).addTo(map);

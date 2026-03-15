@@ -1019,38 +1019,58 @@ function toggleGarden(){
   gActive=!gActive;document.getElementById('btn-garden').classList.toggle('active',gActive);
   gLayers.forEach(l=>map.removeLayer(l));gLayers=[];
   if(!gActive){showToast('Memory Garden hidden');return;}
-  // Only Love Coordinates count for garden clusters
   if(lcPins.length<2){showToast('Need at least 2 Love Coordinates for clusters');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
-  // Group nearby pins using a grid cell size (in degrees)
-  const C=0.02; // tighter cell = smaller circles
+
+  // Use current map zoom to set cluster radius dynamically
+  // At zoom 14+: ~50m clusters; zoom 12: ~200m; zoom 10: ~800m
+  const zoom=map.getZoom();
+  const metersPerCell=Math.max(30, 20000/Math.pow(2,zoom-8));
+
+  // Convert meters to degrees (approx)
+  const degPerMeter=1/111000;
+  const C=metersPerCell*degPerMeter;
+
   const cells={};
   lcPins.forEach(p=>{
     const k=`${Math.floor(p.lat/C)},${Math.floor(p.lng/C)}`;
     if(!cells[k]) cells[k]={pins:[]};
     cells[k].pins.push(p);
   });
+
   const sh=['#ffb3c6','#ff85a1','#ffc8d5','#ffd6e0','#f7a8be'];let ci=0;
+  let drawn=0;
+
+  // Draw a circle for EVERY cell that has 2+ pins
   Object.values(cells).filter(c=>c.pins.length>=2).forEach(c=>{
-    // Compute the actual bounding box of pins in this cell
-    const lats=c.pins.map(p=>p.lat),lngs=c.pins.map(p=>p.lng);
+    const lats=c.pins.map(p=>p.lat), lngs=c.pins.map(p=>p.lng);
     const centerLat=(Math.min(...lats)+Math.max(...lats))/2;
     const centerLng=(Math.min(...lngs)+Math.max(...lngs))/2;
-    // Radius = half the diagonal of the bounding box + small padding
-    // 1 degree lat ≈ 111km, 1 degree lng ≈ 111km*cos(lat)
+    // Tight radius: just enough to wrap the pins + 60m padding
     const dLat=(Math.max(...lats)-Math.min(...lats))*111000/2;
     const dLng=(Math.max(...lngs)-Math.min(...lngs))*111000*Math.cos(centerLat*Math.PI/180)/2;
-    const radius=Math.sqrt(dLat*dLat+dLng*dLng)+180; // +180m padding
-    const finalRadius=Math.max(radius,80); // min 80m so single pins still show
+    const radius=Math.max(Math.sqrt(dLat*dLat+dLng*dLng)+60, 50);
     const circle=L.circle([centerLat,centerLng],{
-      radius:finalRadius,
+      radius,
       color:sh[ci%sh.length],fillColor:sh[ci%sh.length],
-      fillOpacity:.22,weight:1.5,opacity:.5
+      fillOpacity:.28,weight:2,opacity:.6
     }).addTo(map);
     circle.on('click',()=>showToast(`${c.pins.length} love memor${c.pins.length>1?'ies':'y'} here 🌸`));
-    gLayers.push(circle);ci++;
+    gLayers.push(circle);ci++;drawn++;
   });
-  if(!gLayers.length){showToast('No nearby Love Coordinates to cluster yet');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
-  showToast(`${gLayers.length} memory cluster${gLayers.length>1?'s':''} blooming 🌸`);
+
+  // Also draw single-pin cells as tiny dots so every LC is shown
+  Object.values(cells).filter(c=>c.pins.length===1).forEach(c=>{
+    const p=c.pins[0];
+    const dot=L.circle([p.lat,p.lng],{
+      radius:35,
+      color:sh[ci%sh.length],fillColor:sh[ci%sh.length],
+      fillOpacity:.2,weight:1.5,opacity:.4
+    }).addTo(map);
+    gLayers.push(dot);ci++;
+  });
+
+  if(drawn===0&&gLayers.length===0){showToast('Zoom in closer to see clusters');gActive=false;document.getElementById('btn-garden').classList.remove('active');return;}
+  showToast(`Memory Garden blooming 🌸 — ${drawn} cluster${drawn!==1?'s':''} found`);
 }
 
 /* ── MEMORY LIST ─────────────────────────────────── */

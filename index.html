@@ -36,6 +36,9 @@ button{font-family:var(--fb);cursor:pointer;}
   height:var(--topbar-h);
   position:fixed;top:0;left:0;right:0;z-index:1000;
   box-shadow:0 1px 10px rgba(180,80,110,.07);
+  /* GPU layer — prevents iOS Safari from moving fixed bars during map drag */
+  -webkit-transform:translateZ(0);transform:translateZ(0);
+  will-change:transform;
 }
 .logo{font-family:var(--fh);font-size:1.35rem;font-style:italic;color:var(--rose-deep);display:flex;align-items:center;gap:6px;}
 
@@ -47,6 +50,9 @@ button{font-family:var(--fb);cursor:pointer;}
   position:fixed;top:var(--topbar-h);left:0;right:0;z-index:999;
   box-shadow:0 2px 12px rgba(180,80,110,.06);
   overflow-x:auto;-webkit-overflow-scrolling:touch;
+  /* GPU layer — prevents iOS Safari from moving fixed bars during map drag */
+  -webkit-transform:translateZ(0);transform:translateZ(0);
+  will-change:transform;
 }
 #toolbar::-webkit-scrollbar{display:none;}
 #toolbar{scrollbar-width:none;}
@@ -58,8 +64,7 @@ button{font-family:var(--fb);cursor:pointer;}
 .ib.active{background:var(--rose-pale);border-color:var(--rose-deep);box-shadow:0 0 0 3px rgba(184,84,112,.12);}
 .ib::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%);background:var(--ink);color:white;font-size:.65rem;font-weight:500;padding:3px 8px;border-radius:20px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9999;}
 .ib:hover::after{opacity:1;}
-/* Trail show-all button — slightly wider to fit ★★★ */
-.ib-wide{width:42px;font-size:.75rem;letter-spacing:-.5px;}
+/* Trail show-all button — now a .tp pill like Journey/Garden */
 .tp{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:.74rem;font-weight:600;color:var(--rose-deep);transition:all .18s;box-shadow:var(--sx);white-space:nowrap;flex-shrink:0;}
 .tp:hover{background:var(--rose-pale);border-color:var(--rose);}
 .tp.active{background:var(--rose-deep);color:white;border-color:var(--rose-deep);box-shadow:0 3px 14px rgba(184,84,112,.3);}
@@ -283,7 +288,6 @@ input[type="date"].fi::-webkit-calendar-picker-indicator{opacity:.6;cursor:point
   #toolbar{gap:4px;padding:0 10px;}
   .tgl{display:none;}
   .ib{width:32px;height:32px;font-size:.85rem;}
-  .ib-wide{width:40px;font-size:.7rem;}
   .tp .tp-label{display:none;}
   .tp{padding:5px 9px;gap:0;}
   #sidebar{position:fixed;top:calc(var(--topbar-h) + var(--toolbar-h));bottom:0;left:0;z-index:200;transform:translateX(-100%);width:min(280px,80vw);border-radius:0 16px 0 0;box-shadow:4px 0 24px rgba(180,80,110,.18);}
@@ -317,16 +321,14 @@ input[type="date"].fi::-webkit-calendar-picker-indicator{opacity:.6;cursor:point
     <button class="ib" id="btn-lc" data-tip="Love Coordinate">📍</button>
     <button class="ib" id="btn-sweet" data-tip="Sweet Spot">💗</button>
     <button class="ib" id="btn-snuggle" data-tip="Snuggle Spot">🧸</button>
-    <!-- Single star = create trail -->
     <button class="ib" id="btn-trail" data-tip="Create Love Trail">⭐</button>
-    <!-- Triple star = show/hide all trails -->
-    <button class="ib ib-wide" id="btn-trails-show" data-tip="Show All Trails">★★★</button>
   </div>
   <div class="div"></div>
   <div class="tg">
     <span class="tgl">Layers</span>
     <button class="tp" id="btn-journey"><span>🗺️</span><span class="tp-label"> Journey</span></button>
     <button class="tp" id="btn-garden"><span>🌿</span><span class="tp-label"> Garden</span></button>
+    <button class="tp" id="btn-trails-show"><span>✨</span><span class="tp-label"> Sparkles</span></button>
   </div>
   <div class="sp"></div>
   <div class="tg">
@@ -721,7 +723,7 @@ function toggleAllTrails(){
     r.line.setStyle({opacity:trailsVisible?.85:0});
     r.visible=trailsVisible;
   });
-  showToast(trailsVisible?'All trails visible ★★★':'Trails hidden');
+  showToast(trailsVisible?'Sparkles — all trails visible ✨':'Trails hidden');
 }
 
 /* ── LABELS ──────────────────────────────────────── */

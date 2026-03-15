@@ -15,7 +15,25 @@ body{font-family:var(--fb);color:var(--ink);display:flex;flex-direction:column;}
 button{font-family:var(--fb);cursor:pointer;}
 
 /* TOP BAR */
-#topbar{background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 14px;height:54px;z-index:1000;flex-shrink:0;box-shadow:0 1px 12px rgba(180,80,110,.06);}
+#topbar{
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:0 14px;
+  height:54px;
+  z-index:1000;
+  flex-shrink:0;
+  box-shadow:0 1px 12px rgba(180,80,110,.06);
+  /* Allow horizontal scroll on very small screens as last resort */
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+/* Hide scrollbar on topbar */
+#topbar::-webkit-scrollbar{display:none;}
+#topbar{scrollbar-width:none;}
+
 .logo{font-family:var(--fh);font-size:1.3rem;font-style:italic;color:var(--rose-deep);white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;}
 .div{width:1px;height:24px;background:var(--border);flex-shrink:0;}
 .tg{display:flex;align-items:center;gap:4px;flex-shrink:0;}
@@ -28,12 +46,12 @@ button{font-family:var(--fb);cursor:pointer;}
 .tp{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--white);font-size:.75rem;font-weight:600;color:var(--rose-deep);transition:all .18s;box-shadow:var(--sx);white-space:nowrap;flex-shrink:0;}
 .tp:hover{background:var(--rose-pale);border-color:var(--rose);}
 .tp.active{background:var(--rose-deep);color:white;border-color:var(--rose-deep);box-shadow:0 3px 14px rgba(184,84,112,.3);}
-.sp{flex:1;}
+.sp{flex:1;min-width:8px;}
 
 /* MAIN */
 #main{flex:1;display:flex;overflow:hidden;position:relative;}
 #map{flex:1;z-index:1;}
-#map .leaflet-tile{filter:saturate(0.88) brightness(1.04);}
+/* REMOVED: filter on map tiles — causes blur on mobile high-DPI screens */
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
 /* SEARCH BAR */
@@ -54,7 +72,6 @@ button{font-family:var(--fb);cursor:pointer;}
 .search-ico{
   flex-shrink:0;font-size:.9rem;line-height:1;
   color:var(--rose-deep);opacity:.85;
-  /* SVG magnifier in rose colour */
   display:flex;align-items:center;
 }
 #search-inp{
@@ -214,7 +231,7 @@ button{font-family:var(--fb);cursor:pointer;}
 .leaflet-control-zoom a:hover{background:var(--rose-pale)!important;}
 .leaflet-control-attribution{font-size:.6rem!important;opacity:.7;}
 
-/* PIN PROMPT (shown after search-fly) */
+/* PIN PROMPT */
 #search-pin-prompt{
   background:var(--white);border:1.5px solid var(--border);
   border-radius:18px;margin-top:8px;
@@ -236,13 +253,34 @@ button{font-family:var(--fb);cursor:pointer;}
 /* MOBILE */
 #sbd{display:none;position:fixed;inset:0;z-index:9;background:rgba(0,0,0,.3);}
 #sbd.show{display:block;}
+
 @media(max-width:640px){
+  /* Navbar: hide labels, shrink gaps */
+  .tgl{display:none;}
+  .logo{font-size:1rem;}
+  #topbar{gap:5px;padding:0 10px;}
+  .div{margin:0 1px;}
+  .tg{gap:3px;}
+  .ib{width:32px;height:32px;font-size:.88rem;}
+  /* Shrink Journey/Garden buttons to icon-only on small screens */
+  .tp span:last-child{display:none;}/* hide text label */
+  .tp{padding:6px 8px;font-size:0;gap:0;}
+  .tp span:first-child{font-size:1rem;}/* keep emoji visible */
+
+  /* Sidebar slide-in */
   #sidebar{position:fixed;top:0;bottom:0;left:0;z-index:500;transform:translateX(-100%);}
   #sidebar.open{transform:translateX(0);}
   #sidebar.hidden{transform:translateX(-100%);}
-  .tgl{display:none;}
-  .logo{font-size:1.1rem;}
+
+  /* Search bar: push down a tiny bit for comfort */
   #search-wrap{top:62px;}
+}
+
+/* Extra small (≤360px) — ultra compact */
+@media(max-width:360px){
+  .ib{width:28px;height:28px;font-size:.8rem;}
+  .tp{padding:5px 7px;}
+  #topbar{gap:3px;padding:0 8px;}
 }
 </style>
 </head>
@@ -267,8 +305,8 @@ button{font-family:var(--fb);cursor:pointer;}
   <div class="div"></div>
   <div class="tg">
     <span class="tgl">Layers</span>
-    <button class="tp" id="btn-journey"><span>🗺️</span> Journey</button>
-    <button class="tp" id="btn-garden"><span>🌿</span> Garden</button>
+    <button class="tp" id="btn-journey"><span>🗺️</span> <span>Journey</span></button>
+    <button class="tp" id="btn-garden"><span>🌿</span> <span>Garden</span></button>
   </div>
   <div class="sp"></div>
   <div class="tg">

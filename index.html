@@ -54,6 +54,19 @@ button{font-family:var(--fb);cursor:pointer;}
 /* REMOVED: filter on map tiles — causes blur on mobile high-DPI screens */
 #map.ml{cursor:crosshair!important;}#map.ms{cursor:crosshair!important;}#map.mn{cursor:crosshair!important;}#map.mt{cursor:cell!important;}
 
+/* Crisp tile rendering on all screens — especially high-DPI mobile */
+.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast; /* Safari/WebKit */
+  image-rendering: crisp-edges;               /* Firefox */
+  /* Do NOT use pixelated — blurs on retina */
+}
+/* Ensure map fills its container fully on mobile */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background: var(--blush);
+}
+
 /* SEARCH BAR */
 #search-wrap{
   position:fixed;top:68px;left:50%;transform:translateX(-50%);
@@ -471,14 +484,32 @@ let refs={};
 let lcFiles=[];
 
 function initMap(){
-  map=L.map('map',{zoomControl:false});
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
-    maxZoom:19
+  // Tight world bounds — prevents repeating worlds and empty space
+  const worldBounds = L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180));
+
+  map = L.map('map', {
+    zoomControl: false,
+    minZoom: 2,          // Never zoom out past a full world view
+    maxZoom: 19,
+    maxBounds: worldBounds,
+    maxBoundsViscosity: 1.0,  // Hard stop at world edges — no elastic bounce
+    worldCopyJump: false,     // Disable infinite horizontal world repetition
+    // Retina / high-DPI: request @2x tiles when available
+    tap: true,
+    tapTolerance: 15,
+  });
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+    minZoom: 2,
+    // detectRetina requests higher-res tiles on high-DPI screens — fixes mobile blur
+    detectRetina: true,
   }).addTo(map);
+
   L.control.zoom({position:'bottomright'}).addTo(map);
-  map.on('click',onMapClick);
-  map.on('zoomend',updLabels);
+  map.on('click', onMapClick);
+  map.on('zoomend', updLabels);
 }
 
 /* ── SEARCH ─────────────────────────────────────── */
@@ -601,9 +632,9 @@ function updLabels(){
 function fitMap(){
   const all=[...lcPins,...swPins,...snPins];
   trPins.forEach(t=>(t.points||[]).forEach(p=>all.push({lat:p[0],lng:p[1]})));
-  if(!all.length){map.setView([20,0],2);return;}
+  if(!all.length){map.setView([20,0],3);return;}
   if(all.length===1){map.setView([all[0].lat,all[0].lng],13);return;}
-  map.fitBounds(L.latLngBounds(all.map(p=>[p.lat,p.lng])),{padding:[50,50]});
+  map.fitBounds(L.latLngBounds(all.map(p=>[p.lat,p.lng])),{padding:[60,60],maxZoom:14});
 }
 
 /* MARKERS */

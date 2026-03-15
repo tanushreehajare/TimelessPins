@@ -36,6 +36,7 @@ button{font-family:var(--fb);cursor:pointer;}
   height:var(--topbar-h);
   z-index:1000;flex-shrink:0;
   box-shadow:0 1px 10px rgba(180,80,110,.07);
+  position:sticky;top:0; /* stays fixed even when body content shifts */
 }
 .logo{
   font-family:var(--fh);font-size:1.35rem;font-style:italic;
@@ -53,6 +54,7 @@ button{font-family:var(--fb);cursor:pointer;}
   box-shadow:0 2px 12px rgba(180,80,110,.06);
   overflow-x:auto;
   -webkit-overflow-scrolling:touch;
+  position:sticky;top:var(--topbar-h); /* sticks below topbar */
 }
 #toolbar::-webkit-scrollbar{display:none;}
 #toolbar{scrollbar-width:none;}
@@ -246,8 +248,19 @@ button{font-family:var(--fb);cursor:pointer;}
 .istrip::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 .istrip img{width:190px;height:140px;object-fit:cover;border-radius:13px;border:2px solid var(--border);box-shadow:var(--sm);flex-shrink:0;}
 .sdesc{font-size:.88rem;color:var(--ink);line-height:1.75;}
-.sc{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,#1e0a30,#2d1244);color:white;margin-top:8px;}
-.sc img{width:54px;height:54px;border-radius:10px;object-fit:cover;flex-shrink:0;}
+.sc{position:relative;border-radius:16px;overflow:hidden;margin-top:10px;background:var(--rose-pale);border:2px solid var(--border);}
+.sc img{width:100%;max-height:220px;object-fit:cover;display:block;border-radius:14px;}
+.sc-link{
+  position:absolute;bottom:10px;right:10px;
+  width:40px;height:40px;border-radius:50%;
+  background:var(--rose-deep);border:2px solid white;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 12px rgba(184,84,112,.4);
+  transition:transform .18s,box-shadow .18s;
+  text-decoration:none;
+}
+.sc-link:hover{transform:scale(1.1);box-shadow:0 5px 18px rgba(184,84,112,.55);}
+.sc-link svg{display:block;}
 .sci{font-weight:600;font-size:.9rem;margin-bottom:4px;}
 .sca{font-size:.75rem;color:#c4a0e8;text-decoration:none;}
 .sca:hover{text-decoration:underline;}
@@ -304,6 +317,16 @@ button{font-family:var(--fb);cursor:pointer;}
 /* ═══ TOAST ═══ */
 #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:white;padding:10px 20px;border-radius:28px;font-size:.82rem;font-weight:500;z-index:99999;pointer-events:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;box-shadow:var(--sh);}
 #toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ═══ IMAGE LIGHTBOX ═══ */
+#lightbox{position:fixed;inset:0;z-index:90000;background:rgba(20,8,16,.88);backdrop-filter:blur(8px);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+#lightbox.open{display:flex;}
+#lb-img{max-width:100%;max-height:65vh;border-radius:16px;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.5);}
+#lb-name{color:white;font-family:var(--fh);font-style:italic;font-size:1.2rem;margin-top:14px;text-align:center;opacity:.9;}
+#lb-go{margin-top:14px;padding:11px 26px;border-radius:28px;border:none;background:linear-gradient(135deg,var(--rose-mid),var(--rose-deep));color:white;font-family:var(--fb);font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(184,84,112,.35);transition:all .18s;}
+#lb-go:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(184,84,112,.45);}
+#lb-close{position:absolute;top:18px;right:18px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;font-size:1.1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .18s;}
+#lb-close:hover{background:rgba(255,255,255,.28);}
 
 /* ═══ LOADING ═══ */
 #loading{position:fixed;inset:0;z-index:99999;background:linear-gradient(145deg,#fff5f8,#fdeef3,#fdf5f0);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .45s;}
@@ -427,7 +450,7 @@ button{font-family:var(--fb);cursor:pointer;}
   <div class="sp"></div>
   <div class="tg">
     <button class="ib" id="btn-pindom"   data-tip="Memory List">📋</button>
-    <button class="ib" id="btn-pinboard" data-tip="Photo Board">🖼️</button>
+    <button class="ib" id="btn-pinboard" data-tip="Pin Board">🖼️</button>
   </div>
 </div>
 
@@ -537,9 +560,22 @@ button{font-family:var(--fb);cursor:pointer;}
     <div class="mbt">🧸 Snuggle Spot</div>
     <div class="mbs" id="sn-cl"></div>
     <div class="fl"><label>Place Name *</label><input class="fi" id="sn-n" placeholder="Our cosy hideaway…" maxlength="60"/></div>
-    <div class="fl"><label>Song Title</label><input class="fi" id="sn-st" placeholder="Name of your song…" maxlength="80"/></div>
-    <div class="fl"><label>Spotify Cover Image URL</label><input class="fi" id="sn-si" placeholder="Paste the album cover image URL…"/></div>
-    <div class="fl"><label>Spotify Song Link (optional)</label><input class="fi" id="sn-su" placeholder="https://open.spotify.com/track/…"/></div>
+    <div class="fl">
+      <label>Song Cover Image *</label>
+      <div class="uz" id="sn-cover-zone">
+        <input type="file" id="sn-cover" accept="image/*" onchange="handleSnCover(this)"/>
+        <div class="uzi">🎵</div>
+        <div class="uzt" id="sn-cover-txt">Tap to add song cover image</div>
+      </div>
+    </div>
+    <div class="fl"><label>Song Link (optional)</label><input class="fi" id="sn-su" placeholder="https://open.spotify.com/track/…"/></div>
+    <div class="fl">
+      <label>Extra Photos (optional)</label>
+      <div class="uz"><input type="file" id="sn-i" accept="image/*" multiple onchange="handleSnImgs(this)"/>
+        <div class="uzi">📷</div><div class="uzt">Tap to add more photos</div>
+      </div>
+      <div id="sn-ps"></div>
+    </div>
     <div class="ma">
       <button class="bs" onclick="cancelMode()">Cancel</button>
       <button class="bp" onclick="submitSnuggle()">Save Spot 🧸</button>
@@ -565,10 +601,18 @@ button{font-family:var(--fb);cursor:pointer;}
 <!-- Pinboard -->
 <div id="pb">
   <div id="pbh">
-    <h2>🖼️ Photo Board</h2>
+    <h2>🖼️ Pin Board</h2>
     <button class="ib" onclick="closePB()" style="width:32px;height:32px;font-size:.9rem;">✕</button>
   </div>
   <div id="pbg"></div>
+</div>
+
+<!-- Image Lightbox -->
+<div id="lightbox">
+  <button id="lb-close" onclick="closeLB()">✕</button>
+  <img id="lb-img" src="" alt=""/>
+  <div id="lb-name"></div>
+  <button id="lb-go" onclick="lbGoToPin()">📍 Take me to the Love Coordinate</button>
 </div>
 
 <div id="toast"></div>
@@ -587,6 +631,8 @@ let sbOpen=false,curF='all';
 let lcPins=[],swPins=[],snPins=[],trPins=[];
 let refs={};
 let lcFiles=[];
+let snFiles=[];
+let snCoverFile=null;
 
 /* ── MAP INIT ──────────────────────────────────── */
 function initMap(){
@@ -769,10 +815,17 @@ function openSWD(p){
   openDetail();
 }
 function openSND(p){
+  const imgs=p.images||[];
+  const cover=imgs[0]||null;
+  const extraImgs=imgs.slice(1).map(u=>`<img src="${esc(u)}" loading="lazy"/>`).join('');
+  const linkBtn = p.song_url
+    ? `<a class="sc-link" href="${esc(p.song_url)}" target="_blank" rel="noopener" title="Open song link"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`
+    : '';
   document.getElementById('dc').innerHTML=`
     <div class="badge">🧸 Snuggle Spot</div>
     <div class="stit">${esc(p.name)}</div>
-    ${p.song_img?`<div class="sc"><img src="${esc(p.song_img)}" onerror="this.style.display='none'"/><div><div class="sci">${esc(p.song_title||'Our Song')}</div>${p.song_url?`<a class="sca" href="${esc(p.song_url)}" target="_blank" rel="noopener">▶ Listen on Spotify</a>`:`<div class="sca" style="color:#c4a0e8">🎵 Our song</div>`}</div></div>`:''}`;
+    ${cover?`<div class="sc"><img src="${esc(cover)}" onerror="this.style.display='none'"/>${linkBtn}</div>`:''}
+    ${extraImgs?`<div class="istrip" style="margin-top:14px;">${extraImgs}</div>`:''}`;
   openDetail();
 }
 function openDetail(){document.getElementById('dp').classList.add('open');}
@@ -830,15 +883,20 @@ async function submitSweet(){
 async function submitSnuggle(){
   const n=document.getElementById('sn-n').value.trim();
   if(!n||!pendingLL){showToast('Please enter a place name');return;}
-  const b=document.querySelector('#mo-snuggle .bp');b.disabled=true;
+  if(!snCoverFile){showToast('Please add a song cover image');return;}
+  const b=document.querySelector('#mo-snuggle .bp');b.disabled=true;b.textContent='Saving…';
+  // Upload cover first, then extra photos — cover is always images[0]
+  const allFiles=[snCoverFile,...snFiles];
+  let imgs=[];
+  for(const f of allFiles){const u=await upImg(f);if(u)imgs.push(u);}
   const{error}=await sb.from('snuggle_pins').insert({
     name:n,lat:pendingLL.lat,lng:pendingLL.lng,
     song_url:document.getElementById('sn-su').value.trim()||null,
-    song_img:document.getElementById('sn-si').value.trim()||null,
-    song_title:document.getElementById('sn-st').value.trim()||null
+    images:imgs,
   });
-  b.disabled=false;if(error){showToast('Error saving.');return;}
-  closeModal('mo-snuggle');cancelMode();showToast('Snuggle Spot saved! 🧸');
+  b.disabled=false;b.textContent='Save Spot 🧸';
+  if(error){showToast('Error saving.');return;}
+  closeModal('mo-snuggle');cancelMode();resetSN();showToast('Snuggle Spot saved! 🧸');
 }
 function addTP(ll){
   trailPts.push([ll.lat,ll.lng]);
@@ -886,6 +944,45 @@ function handleImgs(input){
 }
 function remPrev(i,btn){lcFiles.splice(i,1);btn.parentElement.remove();}
 function resetLC(){['lc-n','lc-loc','lc-d','lc-de'].forEach(id=>document.getElementById(id).value='');lcFiles=[];document.getElementById('ps').innerHTML='';}
+
+function handleSnCover(input){
+  const file=input.files[0];if(!file) return;
+  snCoverFile=file;
+  const r=new FileReader();
+  r.onload=e=>{
+    document.getElementById('sn-cover-txt').textContent='✓ Cover added — tap to change';
+    document.getElementById('sn-cover-zone').style.backgroundImage=`url(${e.target.result})`;
+    document.getElementById('sn-cover-zone').style.backgroundSize='cover';
+    document.getElementById('sn-cover-zone').style.backgroundPosition='center';
+    document.getElementById('sn-cover-zone').style.opacity='0.85';
+  };
+  r.readAsDataURL(file);
+}
+function handleSnImgs(input){
+  const files=Array.from(input.files);snFiles=[...snFiles,...files];
+  const strip=document.getElementById('sn-ps');
+  files.forEach((f,i)=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const idx=snFiles.length-files.length+i;
+      const div=document.createElement('div');div.className='pt';
+      div.innerHTML=`<img src="${e.target.result}"/><button onclick="remSnPrev(${idx},this)">✕</button>`;
+      strip.appendChild(div);
+    };
+    r.readAsDataURL(f);
+  });
+}
+function remSnPrev(i,btn){snFiles.splice(i,1);btn.parentElement.remove();}
+function resetSN(){
+  document.getElementById('sn-n').value='';
+  document.getElementById('sn-su').value='';
+  document.getElementById('sn-cover').value='';
+  document.getElementById('sn-cover-txt').textContent='Tap to add song cover image';
+  document.getElementById('sn-cover-zone').style.backgroundImage='';
+  document.getElementById('sn-cover-zone').style.opacity='';
+  snCoverFile=null;snFiles=[];
+  document.getElementById('sn-ps').innerHTML='';
+}
 
 /* ── JOURNEY ────────────────────────────────────── */
 let jActive=false;
@@ -984,11 +1081,39 @@ function renderPB(){
     g.innerHTML=`<div style="text-align:center;padding:48px;color:var(--muted);font-size:.85rem;line-height:1.7;">No photos yet 🌸<br/>Add images to Love Coordinates to see them here.</div>`;
     return;
   }
-  g.innerHTML=imgs.map(i=>`<div class="pbc"><img src="${esc(i.u)}" loading="lazy" alt="${esc(i.n)}" onerror="this.parentElement.style.display='none'"/><div class="pbcl">${esc(i.n)}</div><button class="pbcg" onclick="pbFly(${i.lat},${i.lng})" title="Go to pin">📍</button></div>`).join('');
+  g.innerHTML=imgs.map((i,idx)=>`<div class="pbc" onclick="openLB(${idx})"><img src="${esc(i.u)}" loading="lazy" alt="${esc(i.n)}" onerror="this.parentElement.style.display='none'"/><div class="pbcl">${esc(i.n)}</div></div>`).join('');
+  // Store imgs array for lightbox access
+  window._pbImgs=imgs;
 }
 function pbFly(lat,lng){closePB();map.flyTo([lat,lng],15,{animate:true,duration:1});}
 function openPB(){renderPB();document.getElementById('pb').classList.add('open');}
 function closePB(){document.getElementById('pb').classList.remove('open');}
+
+/* LIGHTBOX */
+let _lbIdx=0;
+function openLB(idx){
+  const imgs=window._pbImgs||[];
+  if(!imgs[idx]) return;
+  _lbIdx=idx;
+  document.getElementById('lb-img').src=imgs[idx].u;
+  document.getElementById('lb-name').textContent=imgs[idx].n;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLB(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lb-img').src='';
+}
+function lbGoToPin(){
+  const imgs=window._pbImgs||[];
+  const img=imgs[_lbIdx];
+  if(!img) return;
+  closeLB();
+  closePB();
+  map.flyTo([img.lat,img.lng],15,{animate:true,duration:1});
+}
+document.getElementById('lightbox').addEventListener('click',e=>{
+  if(e.target===document.getElementById('lightbox')) closeLB();
+});
 
 /* ── MODE ───────────────────────────────────────── */
 const mBtns={lc:'btn-lc',sweet:'btn-sweet',snuggle:'btn-snuggle',trail:'btn-trail'};
